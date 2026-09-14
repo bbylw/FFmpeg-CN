@@ -342,6 +342,28 @@
   }
 </style>
 
+<style is:global>
+  /* 亮色面板纸面化：纯白 (elevated/surface) 在纸面页上太碎。
+     必须 !important：compiled scoped 规则是 .sv[cid] .stage[cid]>rect[cid]（3 属性），
+     plain 全局选择器特异性不够扛不住；暗色走变量、无此规则参与，不受影响。
+     另外不能放 scoped——Astro 会给 rect 也加 cid，SVG 节点没该属性，一样失效。
+     chip 与代码块 tint 同档，stage 略深保证 ink-3 字幕/时序墨 4.58:1（再深掉 4.32）。 */
+  html[data-theme="light"] .sv .stage > rect {
+    fill: #f0f3e8 !important;
+  }
+  html[data-theme="light"] .sv .chip > rect {
+    fill: #f4f6ee !important;
+  }
+  /* 热门节点保留强调淡绿：上面的 .stage > rect !important 会把它一并盖成纸面色 */
+  html[data-theme="light"] .sv .stage.hot > rect {
+    fill: var(--color-accent-soft) !important;
+  }
+  html[data-theme="light"] .sv .chip .frames rect,
+  html[data-theme="light"] .sv .chip .wave {
+    fill: var(--color-accent) !important;
+  }
+</style>
+
 <script>
   // 离屏暂停 packet 动画，进视口再续跑（animation-play-state 不丢进度）
   (() => {
