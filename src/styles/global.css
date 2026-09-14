@@ -125,9 +125,12 @@ body {
 
 /* Shiki 双主题（defaultColor:false 输出 --shiki-light* / --shiki-dark* 变量）。
    背景与前景必须各自按主题取：只钉背景会让暗色模式变成「浅字白底」，
-   实测对比度 1.44:1，整页代码块不可读。默认取浅色档，暗色再覆盖。 */
+   实测对比度 1.44:1，整页代码块不可读。默认取浅色档，暗色再覆盖。
+   浅色底是纸面鼠尾草 tint（呼应品牌纸面，直接纯白在纸面页上太晃）：
+   改它必须同步改 shiki-token-colors.ts 的 LIGHT_BG，否则钳制基准还是纯白，
+   临界色（如绿色 #568238）会在新底上掉到 4.1:1。 */
 .astro-code {
-  background-color: var(--shiki-light-bg) !important;
+  background-color: #f1f3ea !important;
 }
 .astro-code span {
   color: var(--shiki-light) !important;
@@ -414,6 +417,10 @@ main pre:focus-within .code-copy,
   }
   .prose-doc table {
     font-size: 0.75rem;
+  }
+  /* 代码块打印强制白底：省墨，且 tint 纸在黑白打印机上会糊成一片灰 */
+  .astro-code {
+    background-color: #fff !important;
   }
   .prose-doc :is(pre, table, blockquote) {
     break-inside: avoid;

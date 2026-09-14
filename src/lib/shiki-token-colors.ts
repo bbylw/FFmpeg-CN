@@ -24,8 +24,15 @@ type HastNode = {
   type?: string;
 };
 
-/** WCAG AA 正文门槛 */
-const MIN_CONTRAST = 4.5;
+/** WCAG AA 正文门槛。取 4.51 而不是 4.5：钳制算的是浮点混色，落盘时要四舍五入到
+ *  hex，这一舍会吃掉约 0.01；留 0.01 余量，保证实测值也在线上。 */
+const MIN_CONTRAST = 4.51;
+
+/** 浅色代码块的真实背景（global.css 里 .astro-code 钉的纸面 tint）。
+ *  Shiki 内联的 --shiki-light-bg 还是纯白，不能直接拿来当钳制基准——
+ *  按纯白算到刚好 4.5 的临界色（如绿色 #568238）在 tint 上只剩约 4.1。
+ *  改了 global.css 的底色必须同步改这里，两处注释里互相指了路。 */
+const LIGHT_BG_OVERRIDE = "#f1f3ea";
 
 type RGB = [number, number, number];
 
@@ -58,6 +65,22 @@ const toHex = (rgb: RGB): string =>
   rgb
     .map((c) => Math.max(0, Math.min(255, Math.round(c))).toString(16).padStart(2, "0"))
     .join("");
+
+/** 浮点混色结果落盘为 hex。`Math.round` 舍入最多吃掉约 0.02 对比度，
+ *  所以落盘后再验一次：不够就往远离背景的方向小步推，直到达标
+ *  （单调收敛，8 步内必到；本来就达标的颜色原样返回，不产生 diff 噪音）。 */
+function finalize(fg: RGB, bg: RGB, min = MIN_CONTRAST): string {
+  const away: RGB = luminance(bg) > 0.5 ? [0, 0, 0] : [255, 255, 255];
+  let cur = fg;
+  let hex = toHex(cur);
+  for (let i = 0; i < 8; i++) {
+    const back = parseColor(hex);
+    if (!back || contrast(back.rgb, bg) >= min) break;
+    cur = mix(cur, away, 0.05);
+    hex = toHex(cur);
+  }
+  return hex;
+}
 
 function luminance([r, g, b]: RGB): number {
   const f = (v: number) => {
@@ -110,7 +133,7 @@ function normalizeStyle(style: string, bgs: Backgrounds): string {
       const bg = which === "light" ? bgs.light : bgs.dark;
       // 先丢掉 alpha（与背景无关，纯粹把被压暗的颜色还原回主题设定的浓度）
       const fixed = bg ? clampContrast(parsed.rgb, bg) : parsed.rgb;
-      return prefix + toHex(fixed);
+      return prefix + (bg ? finalize(fixed, bg) : toHex(fixed));
     }
   );
 }
@@ -131,7 +154,7 @@ export function normalizeTokenColors() {
     pre(node: HastNode) {
       const style = typeof node.properties?.style === "string" ? node.properties.style : "";
       const bgs: Backgrounds = {
-        light: parseColor(readVar(style, "--shiki-light-bg") ?? "")?.rgb,
+        light: parseColor(LIGHT_BG_OVERRIDE)?.rgb,
         dark: parseColor(readVar(style, "--shiki-dark-bg") ?? "")?.rgb,
       };
       if (style) node.properties!.style = normalizeStyle(style, bgs);
