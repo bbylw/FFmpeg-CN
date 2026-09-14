@@ -229,13 +229,13 @@ for (const theme of ["dark", "light"]) {
     };
   });
   console.log(`code[${theme}]`, JSON.stringify(codeRes));
-  // 正文按 WCAG AA 4.5：Shiki 双主题只接一半会变成浅字白底（曾实测 1.44）
+  // 正文与单个 token 统一按 WCAG AA 4.5：归一化 transformer 会保证这个下限，
+  // 一旦它失效（比如钩子名写错静默不生效）这里必须炸
   if (codeRes.base !== null && codeRes.base < 4.5)
     fails.push(`${theme} 代码块正文对比度 ${codeRes.base} < 4.5（背景 ${codeRes.bg}）`);
-  // 单个 token 按 WCAG 非正文图形 3:1：主题会把标点写成带 alpha 的淡色，低到看不见
-  if (codeRes.worst !== null && codeRes.worst < 3)
+  if (codeRes.worst !== null && codeRes.worst < 4.5)
     fails.push(
-      `${theme} 有代码 token 对比度 ${codeRes.worst} < 3（背景 ${codeRes.bg}，样本「${codeRes.sample}」）`
+      `${theme} 有代码 token 对比度 ${codeRes.worst} < 4.5（背景 ${codeRes.bg}，样本「${codeRes.sample}」）`
     );
 }
 

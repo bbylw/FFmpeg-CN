@@ -37,11 +37,16 @@ FFmpeg 中文站：营销首页 + 完整中文文档站。仓库根 `README.md` 
   由 CSS 决定用哪组。**背景和前景必须各自接线**：只把背景钉在浅色档，暗色模式就会变成「浅字白底」，
   实测对比度 1.44:1，整页代码块不可读。`global.css` 里默认取浅色档，`html[data-theme="dark"]` 再覆盖，
   另有一段 `prefers-color-scheme` 兜底（主题脚本未执行时）。
-- `src/lib/shiki-token-alpha.ts` 在生成 HAST 阶段去掉 token 色值里的 alpha：vitesse 给标点（字符串引号）
-  写的是 `#C98A7D77`（47% 不透明度），一般项目无所谓，但本站手册大篇幅讲 shell 引用，引号被压到
-  2.36:1 就糊了。**注意 Shiki 4 的逐 token 钩子叫 `span`**，旧的 `token` 钩子已移除——键名写错不报错、
-  只是静默不生效（这个坑踩过一次）。
-- 深色底上中文标点显示偏暗时，先量对比度再改色，别凭肉眼判断缩放后的截图。
+- `src/lib/shiki-token-colors.ts` 在生成 HAST 阶段归一化 token 颜色，做两件事：
+  1. **去掉 alpha**：vitesse 给标点（字符串引号）写的是 `#C98A7D77`（47% 不透明度），一般项目无所谓，
+     但本站手册大篇幅讲 shell 引用，引号被压到 2.36:1 就糊了。
+  2. **对比度钳制**：把不足 WCAG AA 的 token 颜色朝远离背景的方向混色，二分出「刚好达标」的最小改动。
+     例如 vitesse-light 的字符串色 `#B56959` 在白底上只有 4.09:1，会被压到 `#AB6354`（4.52:1）。
+  为什么必须在构建期做：Shiki 把色值内联成 `--shiki-light` / `--shiki-dark` 变量，内联样式优先级最高，
+  样式表既无法提高变量里的 alpha，也无法重算对比度。
+  **`pre` 钩子负责遍历整棵子树**，因为只有 pre 上带着 `--shiki-*-bg`，钳制需要知道背景。
+- 深色底上标点显示偏暗时，先量对比度再改色，别凭肉眼判断缩放后的截图。**改了 transformer 一定要复测**：
+  钩子键名写错不会报错，只会静默失效（Shiki 4 已把逐 token 的 `token` 钩子改名为 `span`，踩过一次）。
 
 首屏核心视觉是纯 SVG + CSS 变量的「媒体管线」组件（`src/components/PipelineVisual.astro`）：解流 → 解码 → 滤镜 → 编码 → 混流，含字幕 `-c:s copy` 虚线通道与沿线流动的 packet；小屏自动切换竖排简化版；`prefers-reduced-motion` 下静态。
 
