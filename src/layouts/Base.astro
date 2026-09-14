@@ -1,0 +1,76 @@
+---
+import "@fontsource/space-grotesk/latin-500.css";
+import "@fontsource/space-grotesk/latin-700.css";
+import "@fontsource/ibm-plex-mono/latin-400.css";
+import "@fontsource/ibm-plex-mono/latin-500.css";
+import "@phosphor-icons/web/regular";
+import "../styles/global.css";
+import SiteHeader from "../components/SiteHeader.astro";
+import SiteFooter from "../components/SiteFooter.astro";
+import SearchDialog from "../components/SearchDialog.astro";
+
+interface Props {
+  title: string;
+  description: string;
+  bodyClass?: string;
+}
+const { title, description, bodyClass = "" } = Astro.props;
+const canonical = new URL(Astro.url.pathname, Astro.site).href;
+---
+
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{title}</title>
+    <meta name="description" content={description} />
+    <link rel="canonical" href={canonical} />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="sitemap" href="/sitemap-index.xml" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="FFmpeg" />
+    <meta property="og:locale" content="zh_CN" />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:url" content={canonical} />
+    <meta name="theme-color" content="#121513" media="(prefers-color-scheme: dark)" />
+    <meta name="theme-color" content="#f2f4f0" media="(prefers-color-scheme: light)" />
+    <script is:inline>
+      (() => {
+        const root = document.documentElement;
+        const apply = () => {
+          let mode = null;
+          try {
+            mode = localStorage.getItem("theme");
+          } catch {}
+          if (!mode) {
+            mode = window.matchMedia("(prefers-color-scheme: light)").matches
+              ? "light"
+              : "dark";
+          }
+          root.dataset.theme = mode;
+        };
+        apply();
+        window
+          .matchMedia("(prefers-color-scheme: light)")
+          .addEventListener("change", () => {
+            let saved = null;
+            try {
+              saved = localStorage.getItem("theme");
+            } catch {}
+            if (!saved) apply();
+          });
+      })();
+    </script>
+  </head>
+  <body class={bodyClass}>
+    <a class="skip-link" href="#main">跳到主要内容</a>
+    <SiteHeader />
+    <main id="main" class="focus:outline-none" tabindex="-1">
+      <slot />
+    </main>
+    <SiteFooter />
+    <SearchDialog />
+  </body>
+</html>

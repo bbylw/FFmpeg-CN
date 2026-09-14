@@ -1,0 +1,81 @@
+---
+import SiteMark from "./SiteMark.astro";
+import { OFFICIAL } from "../lib/site";
+
+const columns: { title: string; links: { label: string; href: string; ext?: boolean }[] }[] = [
+  {
+    title: "文档",
+    links: [
+      { label: "快速上手", href: "/docs/quickstart/" },
+      { label: "ffmpeg 手册", href: "/docs/ffmpeg/" },
+      { label: "滤镜", href: "/docs/filters/" },
+      { label: "封装格式", href: "/docs/formats/" },
+      { label: "编解码器", href: "/docs/codecs/" },
+      { label: "常见问题", href: "/docs/faq/" },
+    ],
+  },
+  {
+    title: "FFmpeg 官方",
+    links: [
+      { label: "官网", href: OFFICIAL.site, ext: true },
+      { label: "Wiki", href: OFFICIAL.wiki, ext: true },
+      { label: "Git 仓库", href: OFFICIAL.code, ext: true },
+      { label: "下载", href: "https://ffmpeg.org/download.html", ext: true },
+      { label: "开发者邮件列表", href: OFFICIAL.list, ext: true },
+    ],
+  },
+  {
+    title: "社区",
+    links: [
+      { label: "贡献指南", href: "/docs/contributing/" },
+      { label: "IRC 频道", href: OFFICIAL.irc, ext: true },
+      { label: "汇报缺陷", href: OFFICIAL.issues, ext: true },
+      { label: "捐赠支持", href: OFFICIAL.donate, ext: true },
+      { label: "安全公告", href: "/docs/security/" },
+    ],
+  },
+];
+---
+
+<footer class="mt-24 border-t border-line bg-surface">
+  <div class="mx-auto grid max-w-[1280px] gap-10 px-4 py-14 sm:px-6 md:grid-cols-[1.3fr_2fr]">
+    <div>
+      <a href="/" class="flex items-center gap-2.5" aria-label="FFmpeg 首页">
+        <SiteMark size={26} />
+        <span class="text-[17px] font-bold tracking-tight">FFmpeg</span>
+      </a>
+      <p class="mt-4 max-w-[34ch] text-sm leading-relaxed text-ink-2">
+        录制、转换与流化音视频的完整开源方案。本站为社区驱动的中文文档站，内容译自
+        ffmpeg.org 与 FFmpeg 源码仓库 doc/ 目录。
+      </p>
+    </div>
+    <div class="grid gap-8 sm:grid-cols-3">
+      {
+        columns.map((col) => (
+          <nav aria-label={col.title}>
+            <h2 class="mb-3 text-sm font-bold text-ink">{col.title}</h2>
+            <ul class="space-y-2">
+              {col.links.map((l) => (
+                <li>
+                  <a
+                    href={l.href}
+                    class="text-sm text-ink-2 underline-offset-4 hover:text-accent hover:underline"
+                    rel={l.ext ? "noopener" : undefined}
+                    target={l.ext ? "_blank" : undefined}
+                  >
+                    {l.label}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </nav>
+        ))
+      }
+    </div>
+  </div>
+  <div class="border-t border-line">
+    <p class="mx-auto max-w-[1280px] px-4 py-5 text-[13px] leading-relaxed text-ink-3 sm:px-6">
+      FFmpeg 名称与徽标归 FFmpeg 项目及其贡献者所有；译文遵循与官方文档相同的授权条款。代码示例与选项名逐字保留，以官方英文手册为准。
+    </p>
+  </div>
+</footer>

@@ -1,0 +1,198 @@
+---
+import { getCollection, render, type CollectionEntry } from "astro:content";
+import Base from "./Base.astro";
+import { GROUPS, groupRank, OFFICIAL } from "../lib/site";
+import type { Group } from "../lib/site";
+
+interface Props {
+  entry: CollectionEntry<"docs">;
+}
+const { entry } = Astro.props;
+const { title, description, group, order, source } = entry.data;
+const Content = (await render(entry)).Content;
+
+const all = (await getCollection("docs")).sort(
+  (a, b) =>
+    groupRank(a.data.group) - groupRank(b.data.group) ||
+    a.data.order - b.data.order
+);
+const flatIndex = all.findIndex((e) => e.id === entry.id);
+const prev = flatIndex > 0 ? all[flatIndex - 1] : null;
+const next =
+  flatIndex >= 0 && flatIndex < all.length - 1 ? all[flatIndex + 1] : null;
+
+const grouped = GROUPS.map((g) => ({
+  group: g as Group,
+  pages: all.filter((e) => e.data.group === g),
+})).filter((x) => x.pages.length > 0);
+
+const canonical = new URL(`/docs/${entry.id}/`, Astro.site).href;
+---
+
+<Base title={`${title} · FFmpeg`} description={description} bodyClass="min-h-dvh">
+  <div class="mx-auto flex w-full max-w-[1280px] gap-10 px-4 sm:px-6">
+    <aside
+      class="hidden w-[232px] shrink-0 lg:block"
+      aria-label="文档目录"
+    >
+      <nav class="sticky top-[76px] max-h-[calc(100dvh-96px)] overflow-y-auto pb-8 pr-2">
+        {
+          grouped.map(({ group: g, pages }) => (
+            <div class="mb-6">
+              <h2 class="mb-1.5 px-3 text-[13px] font-bold text-ink-3">{g}</h2>
+              <ul>
+                {pages.map((p) => (
+                  <li>
+                    <a
+                      href={`/docs/${p.id}/`}
+                      aria-current={p.id === entry.id ? "page" : undefined}
+                      class:list={[
+                        "block rounded-lg border-l-2 px-3 py-1.5 text-[14px] leading-snug transition-colors",
+                        p.id === entry.id
+                          ? "border-accent bg-accent-soft font-medium text-ink"
+                          : "border-transparent text-ink-2 hover:bg-accent-soft hover:text-ink",
+                      ]}
+                    >
+                      {p.data.title}
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))
+        }
+      </nav>
+    </aside>
+
+    <article class="min-w-0 flex-1 py-8 lg:py-12">
+      <p class="mb-3 text-[13px] text-ink-3">
+        <a href="/docs/" class="hover:text-accent">文档</a>
+        <span aria-hidden="true"> / </span>
+        <a href="/docs/#group" class="hover:text-accent">{group}</a>
+      </p>
+      <div class="prose-doc" id="doc-body">
+        <h1>{title}</h1>
+        <Content />
+      </div>
+
+      <div class="mt-14 flex flex-wrap items-center gap-x-6 gap-y-2 text-[13px] text-ink-3">
+        {
+          source ? (
+            <a
+              href={source}
+              rel="noopener"
+              target="_blank"
+              class="inline-flex items-center gap-1.5 hover:text-accent"
+            >
+              <i class="ph ph-arrows-left-right" aria-hidden="true"></i>
+              对照官方英文原文
+            </a>
+          ) : null
+        }
+        <a
+          href={OFFICIAL.wiki}
+          rel="noopener"
+          target="_blank"
+          class="inline-flex items-center gap-1.5 hover:text-accent"
+        >
+          <i class="ph ph-book-open-text" aria-hidden="true"></i>
+          疑难杂症查 FFmpeg Wiki
+        </a>
+      </div>
+
+      <nav
+        class="mt-8 grid gap-3 border-t border-line pt-6 sm:grid-cols-2"
+        aria-label="前后篇"
+      >
+        {
+          prev ? (
+            <a
+              href={`/docs/${prev.id}/`}
+              class="group rounded-tile border border-line bg-surface px-4 py-3 transition-colors hover:border-line-strong"
+            >
+              <span class="text-[12px] text-ink-3">上一篇</span>
+              <span class="mt-0.5 block text-[15px] font-medium text-ink group-hover:text-accent">
+                {prev.data.title}
+              </span>
+            </a>
+          ) : (
+            <span></span>
+          )
+        }
+        {
+          next ? (
+            <a
+              href={`/docs/${next.id}/`}
+              class="group rounded-tile border border-line bg-surface px-4 py-3 text-right transition-colors hover:border-line-strong sm:col-start-2"
+            >
+              <span class="text-[12px] text-ink-3">下一篇</span>
+              <span class="mt-0.5 block text-[15px] font-medium text-ink group-hover:text-accent">
+                {next.data.title}
+              </span>
+            </a>
+          ) : null
+        }
+      </nav>
+    </article>
+
+    <aside
+      class="hidden w-[210px] shrink-0 xl:block"
+      aria-label="本页目录"
+    >
+      <div class="sticky top-[76px] py-12">
+        <p class="mb-3 px-2 text-[13px] font-bold text-ink-3">本页目录</p>
+        <nav id="toc"></nav>
+      </div>
+    </aside>
+  </div>
+</Base>
+
+<script>
+  // 本页目录：读取渲染后的 h2/h3 id（与正文/搜索索引同一套 slug 生成）
+  (() => {
+    const body = document.getElementById("doc-body");
+    const toc = document.getElementById("toc");
+    if (!body || !toc) return;
+    const heads = [...body.querySelectorAll("h2, h3")];
+    if (!heads.length) return;
+    const nav = document.createElement("ul");
+    nav.className = "space-y-0.5 border-l border-line";
+    const links: HTMLAnchorElement[] = [];
+    for (const h of heads) {
+      const li = document.createElement("li");
+      const a = document.createElement("a");
+      a.href = `#${h.id}`;
+      a.textContent = h.textContent ?? "";
+      a.className =
+        h.tagName === "H3"
+          ? "block border-l-2 border-transparent py-1 pl-6 pr-2 text-[13px] leading-snug text-ink-3 hover:text-ink"
+          : "block border-l-2 border-transparent py-1 pl-4 pr-2 text-[13px] leading-snug text-ink-2 hover:text-ink";
+      li.appendChild(a);
+      nav.appendChild(li);
+      links.push(a);
+    }
+    toc.appendChild(nav);
+
+    let active = -1;
+    const setActive = (i: number) => {
+      if (i === active) return;
+      if (active >= 0 && links[active]) {
+        links[active].classList.remove("!border-accent", "!text-accent");
+      }
+      active = i;
+      if (links[i]) links[i].classList.add("!border-accent", "!text-accent");
+    };
+    const io = new IntersectionObserver(
+      (entries) => {
+        for (const e of entries) {
+          if (e.isIntersecting) {
+            const idx = heads.indexOf(e.target as HTMLElement);
+            if (idx >= 0) setActive(idx);
+          }
+        }
+      },
+      { rootMargin: "-72px 0px -70% 0px" }
+    );
+    heads.forEach((h) => io.observe(h));
+  })();
+</script>

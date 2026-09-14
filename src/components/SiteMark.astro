@@ -1,0 +1,19 @@
+---
+// 站点标记：暗角圆角方块 + 播放三角 + 信号条。单一简单几何标识。
+interface Props {
+  class?: string;
+  size?: number;
+}
+const { class: cls = "h-6 w-6", size } = Astro.props;
+---
+<svg
+  viewBox="0 0 32 32"
+  width={size}
+  class={`shrink-0 ${cls}`}
+  aria-hidden="true"
+  focusable="false"
+>
+  <rect x="1" y="1" width="30" height="30" rx="7" fill="var(--color-bg)" stroke="var(--color-line-strong)" stroke-width="1.5" />
+  <path d="M12.5 9.5 L22 16 L12.5 22.5 Z" fill="var(--color-accent)" />
+  <rect x="7" y="9.5" width="2" height="13" rx="1" fill="var(--color-accent)" opacity="0.55" />
+</svg>

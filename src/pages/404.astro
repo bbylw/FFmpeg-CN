@@ -1,0 +1,37 @@
+---
+import Base from "../layouts/Base.astro";
+---
+
+<Base
+  title="页面不存在 · FFmpeg"
+  description="你访问的页面不存在。回到首页，或在文档中搜索相关内容。"
+>
+  <div class="mx-auto flex max-w-[720px] flex-col items-start px-4 py-24 sm:px-6">
+    <p class="font-mono text-[13px] text-warn">
+      <span class="text-ink-3">$</span> ffmpeg -i /请求的页面/
+    </p>
+    <pre class="mt-3 rounded-code border border-line bg-elevated px-4 py-3 font-mono text-[13px] leading-relaxed text-ink-2"><code>Input /请求的页面/ not found.</code></pre>
+    <h1 class="mt-8 text-3xl font-bold tracking-tight sm:text-4xl">这个地址没有对应的页面</h1>
+    <p class="mt-4 max-w-[46ch] leading-relaxed text-ink-2">
+      文档经常搬家。回首页继续，或直接搜索你想要的内容。
+    </p>
+    <div class="mt-8 flex flex-wrap gap-3">
+      <a href="/" class="rounded-full bg-accent px-5 py-2.5 text-[15px] font-bold text-accent-ink">回到首页</a>
+      <a href="/docs/" class="rounded-full border border-line-strong px-5 py-2.5 text-[15px] font-medium text-ink transition-colors hover:border-accent hover:text-accent">浏览文档</a>
+      <button
+        type="button"
+        id="err-search"
+        class="rounded-full border border-line-strong px-5 py-2.5 text-[15px] font-medium text-ink transition-colors hover:border-accent hover:text-accent"
+      >
+        搜索文档
+      </button>
+    </div>
+  </div>
+  <script>
+    document
+      .getElementById("err-search")
+      ?.addEventListener("click", () =>
+        window.dispatchEvent(new CustomEvent("ffmpeg:search"))
+      );
+  </script>
+</Base>

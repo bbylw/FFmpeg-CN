@@ -1,0 +1,333 @@
+---
+// FFmpeg 管线：解流 → 解码 → 滤镜 → 编码 → 混流。
+// 纯 SVG + CSS 变量，随主题翻转、任意缩放；reduced-motion 下静态。
+// 桌面为横向管线；小屏换竖排简化版，保证文字可读。
+---
+<svg
+  class="sv hidden w-full h-auto select-none sm:block"
+  viewBox="0 0 870 470"
+  role="img"
+  aria-label="FFmpeg 媒体处理管线示意：输入文件经解流器拆分为视频、音频与字幕流，视频与音频分别解码、经过滤镜图处理再编码，字幕流直接复制，最后由混流器封装为输出文件"
+  focusable="false"
+>
+  <defs>
+    <marker id="sv-arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 Z" fill="var(--color-line-strong)" />
+    </marker>
+  </defs>
+
+  <!-- 输入列 -->
+  <g class="chip">
+    <rect x="12" y="74" width="144" height="44" rx="9" />
+    <text x="26" y="101" class="m">input.mp4</text>
+    <g class="frames">
+      <rect x="112" y="88" width="12" height="9" rx="1.5" />
+      <rect x="127" y="88" width="12" height="9" rx="1.5" />
+      <rect x="142" y="88" width="8" height="9" rx="1.5" />
+    </g>
+  </g>
+  <g class="chip">
+    <rect x="12" y="212" width="144" height="44" rx="9" />
+    <text x="26" y="239" class="m">sound.wav</text>
+    <path class="wave" d="M104 234 l4 -7 4 13 4 -18 4 22 4 -16 4 10 4 -6 4 4 4 -2" />
+  </g>
+  <g class="chip">
+    <rect x="12" y="350" width="144" height="44" rx="9" />
+    <text x="26" y="377" class="m">rtmp://live</text>
+    <path class="dashin" d="M120 372 h24" />
+  </g>
+
+  <!-- 输入 → 解流 -->
+  <path class="wire" d="M156 96 C178 96 178 214 196 214" marker-end="url(#sv-arrow)" />
+  <path class="wire" d="M156 234 H192" marker-end="url(#sv-arrow)" />
+  <path class="wire" d="M156 372 C178 372 178 254 196 254" marker-end="url(#sv-arrow)" />
+  <text x="178" y="186" class="m tag">-i</text>
+
+  <!-- 解流 -->
+  <g class="stage">
+    <rect x="196" y="196" width="76" height="76" rx="10" />
+    <text x="234" y="230" class="zh">解流</text>
+    <text x="234" y="249" class="m sub">demuxer</text>
+  </g>
+
+  <!-- 解流 → 各道 -->
+  <path class="wire" d="M272 220 C296 220 292 96 310 96" marker-end="url(#sv-arrow)" />
+  <path class="wire" d="M272 234 H308" marker-end="url(#sv-arrow)" />
+  <path class="wire copy" d="M272 252 C322 252 330 372 396 372 H652 V278" marker-end="url(#sv-arrow)" />
+  <text x="470" y="360" class="m tag">-c:s copy</text>
+
+  <!-- 视频道 -->
+  <g class="stage">
+    <rect x="312" y="68" width="76" height="56" rx="10" />
+    <text x="350" y="92" class="zh">解码</text>
+    <text x="350" y="110" class="m sub">decoder</text>
+  </g>
+  <path class="wire" d="M388 96 H424" marker-end="url(#sv-arrow)" />
+  <g class="stage hot">
+    <rect x="428" y="68" width="76" height="56" rx="10" />
+    <text x="466" y="92" class="zh">滤镜</text>
+    <text x="466" y="110" class="m sub">filter</text>
+  </g>
+  <text x="466" y="54" class="m tag">-vf scale,fps</text>
+  <path class="wire" d="M504 96 H540" marker-end="url(#sv-arrow)" />
+  <g class="stage">
+    <rect x="544" y="68" width="76" height="56" rx="10" />
+    <text x="582" y="92" class="zh">编码</text>
+    <text x="582" y="110" class="m sub">encoder</text>
+  </g>
+  <text x="582" y="54" class="m tag">libx264</text>
+
+  <!-- 音频道 -->
+  <g class="stage">
+    <rect x="312" y="206" width="76" height="56" rx="10" />
+    <text x="350" y="230" class="zh">解码</text>
+    <text x="350" y="248" class="m sub">decoder</text>
+  </g>
+  <path class="wire" d="M388 234 H540" marker-end="url(#sv-arrow)" />
+  <g class="stage">
+    <rect x="544" y="206" width="76" height="56" rx="10" />
+    <text x="582" y="230" class="zh">编码</text>
+    <text x="582" y="248" class="m sub">encoder</text>
+  </g>
+  <text x="582" y="192" class="m tag">aac</text>
+
+  <!-- → 混流 -->
+  <path class="wire" d="M620 96 C646 96 644 216 660 216" marker-end="url(#sv-arrow)" />
+  <path class="wire" d="M620 234 H656" marker-end="url(#sv-arrow)" />
+
+  <!-- 混流 -->
+  <g class="stage">
+    <rect x="660" y="196" width="76" height="76" rx="10" />
+    <text x="698" y="230" class="zh">混流</text>
+    <text x="698" y="249" class="m sub">muxer</text>
+  </g>
+
+  <!-- 输出列 -->
+  <path class="wire" d="M736 224 C754 224 752 210 766 210" marker-end="url(#sv-arrow)" />
+  <path class="wire" d="M736 236 C754 236 752 252 766 252" marker-end="url(#sv-arrow)" />
+  <g class="chip out">
+    <rect x="770" y="192" width="88" height="38" rx="9" />
+    <text x="784" y="216" class="m">out.mkv</text>
+  </g>
+  <g class="chip out">
+    <rect x="770" y="234" width="88" height="38" rx="9" />
+    <text x="784" y="258" class="m">out.webm</text>
+  </g>
+
+  <!-- 沿线 packet -->
+  <g class="pkt" transform="translate(158 232)" style="--dx: 34px">
+    <rect width="7" height="7" rx="1.5" />
+    <rect width="7" height="7" rx="1.5" x="14" style="animation-delay: -1.2s" />
+  </g>
+  <g class="pkt" transform="translate(276 232)" style="--dx: 30px">
+    <rect width="7" height="7" rx="1.5" />
+  </g>
+  <g class="pkt" transform="translate(392 94)" style="--dx: 30px">
+    <rect width="7" height="7" rx="1.5" />
+    <rect width="7" height="7" rx="1.5" x="12" style="animation-delay: -1.7s" />
+  </g>
+  <g class="pkt" transform="translate(508 94)" style="--dx: 30px">
+    <rect width="7" height="7" rx="1.5" />
+  </g>
+  <g class="pkt" transform="translate(392 232)" style="--dx: 146px; --dur: 3.4s">
+    <rect width="7" height="7" rx="1.5" />
+    <rect width="7" height="7" rx="1.5" x="10" style="animation-delay: -2.4s" />
+  </g>
+  <g class="pkt" transform="translate(624 232)" style="--dx: 30px">
+    <rect width="7" height="7" rx="1.5" />
+  </g>
+  <g class="pkt dim" transform="translate(740 222)" style="--dx: 24px">
+    <rect width="7" height="7" rx="1.5" />
+  </g>
+
+  <!-- 底部命令注解 -->
+  <text x="12" y="446" class="m cmd">$ ffmpeg -i input.mp4 -i sound.wav -vf scale=1280:-2 -c:v libx264 -c:a aac -c:s copy out.mkv</text>
+</svg>
+
+<!-- 小屏竖排简化版 -->
+<svg
+  class="sv v w-full h-auto max-w-[300px] mx-auto select-none sm:hidden"
+  viewBox="0 0 300 520"
+  role="img"
+  aria-label="FFmpeg 管线简化示意：输入经解流、解码、滤镜、编码、混流到输出"
+  focusable="false"
+>
+  <defs>
+    <marker id="sv-arrow-v" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 Z" fill="var(--color-line-strong)" />
+    </marker>
+  </defs>
+  <g class="chip">
+    <rect x="60" y="8" width="180" height="40" rx="9" />
+    <text x="150" y="33" class="m mid">input.mp4 / wav / rtmp</text>
+  </g>
+  <path class="wire" d="M150 48 V66" marker-end="url(#sv-arrow-v)" />
+  <g class="stage">
+    <rect x="60" y="70" width="180" height="46" rx="10" />
+    <text x="150" y="92" class="zh">解流 <tspan class="m sub2">demuxer</tspan></text>
+  </g>
+  <path class="wire" d="M150 116 V134" marker-end="url(#sv-arrow-v)" />
+  <g class="stage">
+    <rect x="60" y="138" width="180" height="46" rx="10" />
+    <text x="150" y="160" class="zh">解码 <tspan class="m sub2">decoder</tspan></text>
+  </g>
+  <path class="wire" d="M150 184 V202" marker-end="url(#sv-arrow-v)" />
+  <g class="stage hot">
+    <rect x="60" y="206" width="180" height="46" rx="10" />
+    <text x="150" y="228" class="zh">滤镜 <tspan class="m sub2">filter</tspan></text>
+  </g>
+  <path class="wire" d="M150 252 V270" marker-end="url(#sv-arrow-v)" />
+  <g class="stage">
+    <rect x="60" y="274" width="180" height="46" rx="10" />
+    <text x="150" y="296" class="zh">编码 <tspan class="m sub2">encoder</tspan></text>
+  </g>
+  <path class="wire" d="M150 320 V338" marker-end="url(#sv-arrow-v)" />
+  <g class="stage">
+    <rect x="60" y="342" width="180" height="46" rx="10" />
+    <text x="150" y="364" class="zh">混流 <tspan class="m sub2">muxer</tspan></text>
+  </g>
+  <path class="wire" d="M150 388 V406" marker-end="url(#sv-arrow-v)" />
+  <g class="chip">
+    <rect x="60" y="410" width="180" height="40" rx="9" />
+    <text x="150" y="435" class="m mid">out.mkv / webm / gif</text>
+  </g>
+  <text x="150" y="490" class="m note">视频、音频、字幕三道并行，字幕可直接复制</text>
+
+  <g class="pkt vflow" transform="translate(146 50)" style="--dx: 0px; --dy: 356px; --dur: 4.2s">
+    <rect width="7" height="7" rx="1.5" />
+    <rect width="7" height="7" rx="1.5" y="16" style="animation-delay: -2.1s" />
+  </g>
+</svg>
+
+<style>
+  .sv {
+    --sv-dur: 2.6s;
+  }
+  .sv .zh {
+    font-family: var(--font-sans);
+    font-size: 16.5px;
+    font-weight: 700;
+    fill: var(--color-ink);
+    text-anchor: middle;
+  }
+  .sv .m {
+    font-family: var(--font-mono);
+    font-size: 13.5px;
+    fill: var(--color-ink-2);
+  }
+  .sv .sub {
+    font-size: 11.5px;
+    fill: var(--color-ink-3);
+    text-anchor: middle;
+  }
+  .sv .sub2 {
+    font-size: 11.5px;
+    fill: var(--color-ink-3);
+  }
+  .sv .mid {
+    text-anchor: middle;
+    font-size: 12.5px;
+  }
+  .sv .note {
+    font-size: 11px;
+    fill: var(--color-ink-3);
+    text-anchor: middle;
+  }
+  .sv .tag {
+    font-size: 11.5px;
+    fill: var(--color-accent);
+    text-anchor: middle;
+  }
+  .sv .cmd {
+    font-size: 13.5px;
+    fill: var(--color-ink-3);
+  }
+  .sv .wire {
+    fill: none;
+    stroke: var(--color-line-strong);
+    stroke-width: 1.4;
+  }
+  .sv .wire.copy {
+    stroke-dasharray: 4 5;
+  }
+  .sv .chip rect {
+    fill: var(--color-surface);
+    stroke: var(--color-line-strong);
+    stroke-width: 1.2;
+  }
+  .sv .chip .frames rect,
+  .sv .chip .wave {
+    fill: var(--color-accent);
+    opacity: 0.85;
+  }
+  .sv .chip .wave {
+    fill: none;
+    stroke: var(--color-accent);
+    stroke-width: 1.6;
+    opacity: 0.85;
+  }
+  .sv .dashin {
+    stroke: var(--color-line-strong);
+    stroke-width: 1.6;
+    stroke-dasharray: 3 3;
+    fill: none;
+  }
+  .sv .stage rect {
+    fill: var(--color-elevated);
+    stroke: var(--color-line-strong);
+    stroke-width: 1.2;
+  }
+  .sv .stage.hot rect {
+    stroke: var(--color-accent);
+    stroke-width: 1.6;
+    fill: var(--color-accent-soft);
+  }
+  .sv .pkt rect {
+    fill: var(--color-accent);
+    animation: sv-flow var(--dur, var(--sv-dur)) linear infinite;
+  }
+  .sv .pkt.dim rect {
+    fill: var(--color-ink-3);
+  }
+  .sv .pkt.vflow rect {
+    animation-name: sv-flow-v;
+  }
+  @keyframes sv-flow {
+    0% {
+      transform: translateX(0);
+      opacity: 0;
+    }
+    12% {
+      opacity: 1;
+    }
+    88% {
+      opacity: 1;
+    }
+    100% {
+      transform: translateX(var(--dx, 30px));
+      opacity: 0;
+    }
+  }
+  @keyframes sv-flow-v {
+    0% {
+      transform: translateY(0);
+      opacity: 0;
+    }
+    12% {
+      opacity: 1;
+    }
+    88% {
+      opacity: 1;
+    }
+    100% {
+      transform: translateY(var(--dy, 356px));
+      opacity: 0;
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .sv .pkt rect {
+      animation: none;
+      opacity: 0.9;
+    }
+  }
+</style>

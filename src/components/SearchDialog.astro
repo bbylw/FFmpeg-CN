@@ -1,0 +1,158 @@
+---
+---
+<div
+  id="search-root"
+  class="fixed inset-0 z-50 hidden"
+  role="dialog"
+  aria-modal="true"
+  aria-label="文档搜索"
+>
+  <div id="search-backdrop" class="absolute inset-0 bg-bg/80 backdrop-blur-sm"></div>
+  <div
+    class="relative mx-auto mt-[12vh] w-[min(640px,calc(100vw-2rem))] overflow-hidden rounded-tile border border-line bg-elevated shadow-2xl shadow-black/30"
+  >
+    <div class="flex items-center gap-3 border-b border-line px-4">
+      <i class="ph ph-magnifier-lg text-[18px] text-ink-3" aria-hidden="true"></i>
+      <input
+        id="search-input"
+        type="search"
+        class="w-full bg-transparent py-3.5 text-[15px] text-ink outline-none placeholder:text-ink-3"
+        placeholder="搜索文档，如：硬件加速、截取片段、overlay"
+        autocomplete="off"
+      />
+      <kbd class="hidden font-mono text-[11px] text-ink-3 sm:block">Esc</kbd>
+    </div>
+    <div id="search-status" class="px-4 py-3 text-[13px] text-ink-3" role="status">
+      输入关键词开始搜索。
+    </div>
+    <ul id="search-results" class="max-h-[52vh] overflow-y-auto p-2" role="listbox"></ul>
+  </div>
+</div>
+
+<style is:global>
+  #search-root::backdrop {
+    display: none;
+  }
+  .search-hit mark {
+    background: color-mix(in oklab, var(--color-accent) 30%, transparent);
+    color: inherit;
+    border-radius: 3px;
+    padding: 0 1px;
+  }
+</style>
+
+<script>
+  type Hit = { t: string; s: string; h: string; u: string; x: string };
+  let INDEX: Hit[] | null = null;
+
+  const root = document.getElementById("search-root");
+  const input = document.getElementById("search-input") as HTMLInputElement | null;
+  const status = document.getElementById("search-status");
+  const list = document.getElementById("search-results");
+
+  const open = () => {
+    root?.classList.remove("hidden");
+    document.body.style.overflow = "hidden";
+    input?.focus();
+    ensureIndex();
+  };
+  const close = () => {
+    root?.classList.add("hidden");
+    document.body.style.overflow = "";
+  };
+
+  async function ensureIndex() {
+    if (INDEX || !status) return;
+    try {
+      status.textContent = "正在加载索引……";
+      const res = await fetch("/search-index.json");
+      INDEX = (await res.json()) as Hit[];
+      status.textContent = INDEX.length ? "输入关键词开始搜索。" : "索引为空。";
+    } catch {
+      status.textContent = "索引加载失败，可稍后重试或直接浏览文档目录。";
+    }
+  }
+
+  function esc(s: string) {
+    return s.replace(/[&<>"]/g, (c) =>
+      c === "&" ? "&amp;" : c === "<" ? "&lt;" : c === ">" ? "&gt;" : "&quot;"
+    );
+  }
+
+  function search(qRaw: string) {
+    if (!INDEX || !list || !status) return;
+    const q = qRaw.trim().toLowerCase();
+    list.innerHTML = "";
+    if (!q) {
+      status.textContent = "输入关键词开始搜索。";
+      return;
+    }
+    const terms = q.split(/\s+/).filter(Boolean);
+    const scored: { hit: Hit; score: number; ctx: string }[] = [];
+    for (const hit of INDEX) {
+      let score = 0;
+      let ctx = "";
+      const title = hit.t.toLowerCase();
+      const sect = hit.s.toLowerCase();
+      const body = hit.x.toLowerCase();
+      let allFound = true;
+      for (const term of terms) {
+        let t = 0;
+        if (title.includes(term)) t += 6;
+        if (sect.includes(term)) t += 4;
+        const bi = body.indexOf(term);
+        if (bi >= 0) {
+          t += 2;
+          if (!ctx) {
+            const from = Math.max(0, bi - 30);
+            ctx = (from > 0 ? "…" : "") + hit.x.slice(from, bi + term.length + 60) + "…";
+          }
+        }
+        if (t === 0) allFound = false;
+        score += t;
+      }
+      if (allFound && score > 0) scored.push({ hit, score, ctx });
+    }
+    scored.sort((a, b) => b.score - a.score);
+    const top = scored.slice(0, 12);
+    status.textContent = top.length
+      ? `命中 ${top.length} 节（共 ${scored.length} 处）`
+      : `没有匹配「${qRaw.trim()}」的内容。`;
+    for (const { hit, ctx } of top) {
+      const li = document.createElement("li");
+      const a = document.createElement("a");
+      a.href = hit.u;
+      a.className =
+        "search-hit block rounded-lg px-3 py-2.5 hover:bg-accent-soft";
+      const titleHtml = ctx ? markTerms(ctx, terms) : "";
+      a.innerHTML =
+        `<div class="text-[14px] font-medium text-ink">${esc(hit.t)} <span class="text-ink-3">/</span> ${esc(hit.s)}</div>` +
+        (titleHtml ? `<div class="mt-0.5 line-clamp-2 text-[13px] leading-relaxed text-ink-2">${titleHtml}</div>` : "");
+      li.appendChild(a);
+      list.appendChild(li);
+    }
+  }
+
+  function markTerms(text: string, terms: string[]) {
+    let html = esc(text);
+    for (const term of terms) {
+      const re = new RegExp(
+        term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"),
+        "ig"
+      );
+      html = html.replace(re, (m) => `<mark>${m}</mark>`);
+    }
+    return html;
+  }
+
+  window.addEventListener("ffmpeg:search", open);
+  document.getElementById("search-backdrop")?.addEventListener("click", close);
+  input?.addEventListener("input", () => search(input.value));
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && root && !root.classList.contains("hidden")) close();
+    if (e.key === "Enter" && root && !root.classList.contains("hidden")) {
+      const first = list?.querySelector("a");
+      if (first) location.href = first.getAttribute("href") || "";
+    }
+  });
+</script>

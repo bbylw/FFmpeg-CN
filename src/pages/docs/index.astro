@@ -1,0 +1,120 @@
+---
+import { getCollection } from "astro:content";
+import Base from "../../layouts/Base.astro";
+import { GROUPS, groupRank, GROUP_BLURB, type Group } from "../../lib/site";
+
+const all = (await getCollection("docs")).sort(
+  (a, b) =>
+    groupRank(a.data.group) - groupRank(b.data.group) ||
+    a.data.order - b.data.order
+);
+const grouped = GROUPS.map((g) => ({
+  group: g as Group,
+  pages: all.filter((e) => e.data.group === g),
+})).filter((x) => x.pages.length > 0);
+
+const featured = all.find((e) => e.id === "what-is-ffmpeg");
+const rest = grouped
+  .map((x) => ({
+    ...x,
+    pages: x.pages.filter((e) => e.id !== "what-is-ffmpeg"),
+  }))
+  .filter((x) => x.pages.length > 0);
+---
+
+<Base
+  title="FFmpeg 文档"
+  description="FFmpeg 中文文档：从安装下载、三条常用命令开始，到编解码器、封装格式、滤镜与设备的完整手册。"
+>
+  <div class="mx-auto max-w-[1280px] px-4 py-14 sm:px-6 lg:py-20">
+    <div class="grid gap-10 lg:grid-cols-[minmax(0,5fr)_minmax(0,4fr)] lg:gap-16">
+      <div>
+        <h1 class="text-3xl font-bold tracking-tight sm:text-4xl">文档</h1>
+        <p class="mt-4 max-w-[46ch] leading-relaxed text-ink-2">
+          译自 ffmpeg.org 官方手册与 FFmpeg 源码仓库 doc/ 目录。
+          命令、选项与参数逐字保留，解释全部中文化。
+          遇到具体疑难问题，官方 <a
+            class="text-accent underline underline-offset-4"
+            href="https://trac.ffmpeg.org/"
+            rel="noopener"
+            target="_blank">Wiki</a
+          > 仍是最快的答案来源。
+        </p>
+        <div class="mt-8 flex flex-wrap gap-3">
+          <button
+            type="button"
+            id="docs-search-btn"
+            class="rounded-full bg-accent px-5 py-2.5 text-[15px] font-medium text-accent-ink transition-transform active:scale-[0.98]"
+          >
+            搜索文档
+          </button>
+          <a
+            href="/docs/quickstart/"
+            class="rounded-full border border-line-strong px-5 py-2.5 text-[15px] font-medium text-ink transition-colors hover:border-accent hover:text-accent"
+          >
+            快速上手
+          </a>
+        </div>
+      </div>
+
+      {
+        featured ? (
+          <a
+            href={`/docs/${featured.id}/`}
+            class="group block self-start rounded-tile border border-line bg-surface p-6 transition-colors hover:border-line-strong sm:p-8"
+          >
+            <p class="font-mono text-[13px] text-ink-3">从这里开始</p>
+            <h2 class="mt-2 text-xl font-bold text-ink group-hover:text-accent">
+              {featured.data.title}
+            </h2>
+            <p class="mt-2 text-[15px] leading-relaxed text-ink-2">
+              {featured.data.description}
+            </p>
+            <p class="mt-4 inline-flex items-center gap-1.5 text-[14px] font-medium text-accent">
+              阅读全文
+              <i class="ph ph-arrow-right" aria-hidden="true"></i>
+            </p>
+          </a>
+        ) : null
+      }
+    </div>
+
+    <div class="mt-16 grid gap-x-12 gap-y-12 md:grid-cols-2 xl:grid-cols-3">
+      {
+        rest.map(({ group: g, pages }) => (
+          <section id={g} aria-labelledby={`h-${g}`}>
+            <h2 id={`h-${g}`} class="text-[15px] font-bold text-ink">
+              {g}
+            </h2>
+            <p class="mt-1 text-[13px] text-ink-3">{GROUP_BLURB[g]}</p>
+            <ul class="mt-4 space-y-2.5">
+              {pages.map((p) => (
+                <li>
+                  <a
+                    href={`/docs/${p.id}/`}
+                    class="group flex items-baseline gap-2.5 text-[15px] text-ink-2 hover:text-ink"
+                  >
+                    <span
+                      class="mt-[7px] h-[7px] w-[7px] shrink-0 bg-accent transition-transform group-hover:scale-125"
+                      aria-hidden="true"
+                      style="transform: rotate(45deg)"
+                    ></span>
+                    <span>{p.data.title}</span>
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </section>
+        ))
+      }
+    </div>
+  </div>
+
+  <script>
+    document
+      .getElementById("docs-search-btn")
+      ?.addEventListener("click", () =>
+        window.dispatchEvent(new CustomEvent("ffmpeg:search"))
+      );
+  </script>
+</Base>

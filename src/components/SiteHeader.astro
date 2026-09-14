@@ -1,0 +1,146 @@
+---
+import SiteMark from "./SiteMark.astro";
+import { NAV } from "../lib/site";
+
+const path = Astro.url.pathname.replace(/\/$/, "") || "/";
+const isActive = (href: string) =>
+  href === "/docs/"
+    ? path === "/docs" || (path.startsWith("/docs") && !NAV.slice(1).some((n) => path.startsWith(n.href.replace(/\/$/, ""))))
+    : path.startsWith(href.replace(/\/$/, ""));
+---
+
+<header
+  class="sticky top-0 z-40 border-b border-line bg-bg/85 backdrop-blur-md supports-[backdrop-filter]:bg-bg/70"
+>
+  <div class="mx-auto flex h-[60px] max-w-[1280px] items-center gap-6 px-4 sm:px-6">
+    <a href="/" class="flex items-center gap-2.5" aria-label="FFmpeg 首页">
+      <SiteMark />
+      <span class="text-[17px] font-bold tracking-tight">FFmpeg</span>
+    </a>
+
+    <nav class="hidden items-center gap-1 md:flex" aria-label="主导航">
+      {
+        NAV.map((item) => (
+          <a
+            href={item.href}
+            aria-current={isActive(item.href) ? "page" : undefined}
+            class:list={[
+              "rounded-full px-3.5 py-1.5 text-sm text-ink-2 transition-colors hover:bg-accent-soft hover:text-ink",
+              isActive(item.href) && "bg-accent-soft font-medium text-ink",
+            ]}
+          >
+            {item.label}
+          </a>
+        ))
+      }
+    </nav>
+
+    <div class="ml-auto flex items-center gap-1.5">
+      <button
+        type="button"
+        id="search-open"
+        class="hidden h-9 items-center gap-2 rounded-full border border-line px-3 text-[13px] text-ink-3 transition-colors hover:border-line-strong hover:text-ink-2 sm:flex"
+        aria-label="搜索文档"
+      >
+        <i class="ph ph-magnifier-lg text-[15px]" aria-hidden="true"></i>
+        <span>搜索</span>
+        <kbd class="font-mono text-[11px] text-ink-3">Ctrl K</kbd>
+      </button>
+      <button
+        type="button"
+        id="theme-toggle"
+        class="flex h-9 w-9 items-center justify-center rounded-full border border-line text-ink-2 transition-colors hover:border-line-strong hover:text-ink"
+        aria-label="切换明暗主题"
+      >
+        <i class="ph ph-sun text-[17px] dark-sun" aria-hidden="true"></i>
+      </button>
+      <a
+        href="https://ffmpeg.org/"
+        class="hidden h-9 items-center rounded-full border border-line px-3.5 text-[13px] text-ink-2 transition-colors hover:border-line-strong hover:text-ink lg:flex"
+      >
+        官网
+      </a>
+      <button
+        type="button"
+        id="menu-toggle"
+        class="flex h-9 w-9 items-center justify-center rounded-full border border-line text-ink-2 md:hidden"
+        aria-label="打开菜单"
+        aria-expanded="false"
+        aria-controls="mobile-nav"
+      >
+        <i class="ph ph-list text-[17px]" aria-hidden="true"></i>
+      </button>
+    </div>
+  </div>
+
+  <nav
+    id="mobile-nav"
+    class="hidden border-t border-line bg-surface px-4 py-3 md:hidden"
+    aria-label="移动端导航"
+  >
+    {
+      NAV.map((item) => (
+        <a
+          href={item.href}
+          class="block rounded-lg px-3 py-2.5 text-[15px] text-ink-2 hover:bg-accent-soft hover:text-ink"
+        >
+          {item.label}
+        </a>
+      ))
+    }
+    <a
+      href="https://ffmpeg.org/"
+      class="block rounded-lg px-3 py-2.5 text-[15px] text-ink-2 hover:bg-accent-soft hover:text-ink"
+    >
+      ffmpeg.org 官网
+    </a>
+  </nav>
+</header>
+
+<script>
+  // 主题切换
+  (() => {
+    const btn = document.getElementById("theme-toggle");
+    if (!btn) return;
+    const icon = btn.querySelector("i");
+    const sync = () => {
+      const dark = document.documentElement.dataset.theme !== "light";
+      if (icon) icon.className = dark ? "ph ph-moon text-[17px]" : "ph ph-sun text-[17px]";
+      btn.setAttribute("title", dark ? "当前为暗色，点击切换到亮色" : "当前为亮色，点击切换到暗色");
+    };
+    btn.addEventListener("click", () => {
+      const root = document.documentElement;
+      const next = root.dataset.theme === "light" ? "dark" : "light";
+      root.dataset.theme = next;
+      try {
+        localStorage.setItem("theme", next);
+      } catch {}
+      sync();
+    });
+    sync();
+  })();
+
+  // 移动端菜单
+  (() => {
+    const toggle = document.getElementById("menu-toggle");
+    const nav = document.getElementById("mobile-nav");
+    if (!toggle || !nav) return;
+    toggle.addEventListener("click", () => {
+      const open = nav.classList.toggle("hidden") === false;
+      toggle.setAttribute("aria-expanded", String(open));
+    });
+  })();
+
+  // 搜索快捷键
+  (() => {
+    window.addEventListener("keydown", (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        window.dispatchEvent(new CustomEvent("ffmpeg:search"));
+      }
+    });
+    document.getElementById("search-open")?.addEventListener("click", () => {
+      window.dispatchEvent(new CustomEvent("ffmpeg:search"));
+    });
+  })();
+</script>
