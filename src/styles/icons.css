@@ -1,12 +1,12 @@
 /* 由 scripts/build-icons.mjs 生成，请勿手改。
-   仅包含 src/ 中实际使用的 16 个字形；新增图标后跑一次 bun run icons。
+   仅包含 src/ 中实际使用的 18 个字形；新增图标后跑一次 bun run icons。
    图标来源：@phosphor-icons/web（MIT）。 */
 @font-face {
   font-family: "Phosphor";
   src: url("/fonts/phosphor-regular.woff2") format("woff2");
   font-weight: normal;
   font-style: normal;
-  font-display: block;
+  font-display: swap;
 }
 
 .ph {
@@ -52,6 +52,14 @@
 
 .ph.ph-chats-circle:before {
   content: "\e17e";
+}
+
+.ph.ph-check:before {
+  content: "\e182";
+}
+
+.ph.ph-copy:before {
+  content: "\e1ca";
 }
 
 .ph.ph-envelope-simple:before {

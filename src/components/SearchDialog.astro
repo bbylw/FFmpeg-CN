@@ -25,11 +25,11 @@
         placeholder="搜索文档，如：硬件加速、截取片段、overlay"
         autocomplete="off"
       />
-      <!-- 原生 search 的清除叉号在暗色下几乎不可见，换成同色系的按钮 -->
+      <!-- 清除按钮：有输入时才出现，全尺寸可见（此前 sm 以下无清除手段） -->
       <button
         id="search-clear"
         type="button"
-        class="hidden h-6 w-6 shrink-0 items-center justify-center rounded-full text-ink-3 transition hover:bg-accent-soft hover:text-ink sm:flex"
+        class="hidden h-6 w-6 shrink-0 items-center justify-center rounded-full text-ink-3 transition hover:bg-accent-soft hover:text-ink"
         aria-label="清空搜索词"
       >
         <i class="ph ph-x text-[13px]" aria-hidden="true"></i>
@@ -215,10 +215,12 @@
     return html;
   }
 
-  // 清除按钮只在有输入时出现（小屏由 sm:flex 决定是否可见）
+  // 清除按钮只在有输入时出现（全尺寸；hidden/flex 二选一，避免 sm 断点歧义）
   const syncClear = () => {
     if (!clearBtn || !input) return;
-    clearBtn.classList.toggle("hidden", input.value.length === 0);
+    const empty = input.value.length === 0;
+    clearBtn.classList.toggle("hidden", empty);
+    clearBtn.classList.toggle("flex", !empty);
   };
 
   window.addEventListener("ffmpeg:search", open);
@@ -272,10 +274,12 @@
         break;
       }
       case "Tab": {
-        // 焦点锁在对话框内，在输入框与清除按钮之间循环
-        const els = ([input, clearBtn] as (HTMLElement | null)[]).filter(
+        // 焦点锁在对话框内：输入框 → 清除按钮（可见时）→ 结果链接 → 回到输入框。
+        // 此前只在输入框/清除钮之间循环，Tab 永远到不了结果，键盘用户只能靠回车跳第一个。
+        const els = ([input, clearBtn, ...options] as (HTMLElement | null)[]).filter(
           (el): el is HTMLElement => !!el && !el.classList.contains("hidden")
         );
+        if (!els.length) break;
         e.preventDefault();
         if (els.length < 2) {
           els[0]?.focus();
@@ -283,7 +287,9 @@
         }
         const at = els.indexOf(document.activeElement as HTMLElement);
         const step = e.shiftKey ? -1 : 1;
-        els[(at + step + els.length) % els.length].focus();
+        // 焦点当前不在列表里（如刚打开时还在 body）→ 正向进第一个，逆向进最后一个
+        const next = at === -1 ? (e.shiftKey ? els.length - 1 : 0) : (at + step + els.length) % els.length;
+        els[next].focus();
         break;
       }
     }

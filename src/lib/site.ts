@@ -18,6 +18,17 @@ export const GROUP_BLURB: Record<Group, string> = {
   资源: "FAQ、版本、安全与社区",
 };
 
+// 分组锚点用英文 slug：中文 fragment 在不同浏览器/爬虫下的编码不一致，
+// 面包屑 JSON-LD 与 /docs/ 分区 id 共用这一份，改一处即全站一致。
+export const GROUP_SLUG: Record<Group, string> = {
+  开始: "getting-started",
+  命令行工具: "cli-tools",
+  通用语法: "syntax",
+  组件手册: "components",
+  开发库: "libraries",
+  资源: "resources",
+};
+
 export const NAV = [
   { label: "文档", href: "/docs/" },
   { label: "下载", href: "/docs/download/" },

@@ -25,10 +25,13 @@ jobs:
       #   v5 把内部的 upload-artifact 提到 v7
       # - deploy-pages v5：跑在 Node 24，与 upload-pages-artifact v5 配套
       - uses: actions/checkout@v7
+      # bun 锁大版本：latest 曾在小版本引入过构建行为差异，本地用 1.4.x，CI 跟大版本即可
       - uses: oven-sh/setup-bun@v2
         with:
-          bun-version: latest
+          bun-version: "1"
       - run: bun install --frozen-lockfile
+      # astro check（含图标子集过期校验）先行，失败就不进 build
+      - run: bun run check
       - run: bun run build
       - uses: actions/upload-pages-artifact@v5
         with:

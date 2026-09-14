@@ -4,6 +4,7 @@ import "../styles/fonts.css";
 // 图标字体：由 scripts/build-icons.mjs 从 @phosphor-icons/web 裁出的本站子集
 import "../styles/icons.css";
 import spaceGrotesk500 from "@fontsource/space-grotesk/files/space-grotesk-latin-500-normal.woff2?url";
+import spaceGrotesk700 from "@fontsource/space-grotesk/files/space-grotesk-latin-700-normal.woff2?url";
 import SiteHeader from "../components/SiteHeader.astro";
 import SiteFooter from "../components/SiteFooter.astro";
 import SearchDialog from "../components/SearchDialog.astro";
@@ -16,7 +17,10 @@ interface Props {
   noindex?: boolean;
 }
 const { title, description, bodyClass = "", noindex = false } = Astro.props;
-const canonical = new URL(Astro.url.pathname, Astro.site).href;
+// canonical 统一收敛到 trailing-slash 形态（与 sitemap 一致）：
+// trailingSlash:"ignore" 下 /docs 与 /docs/ 双活，不归一就是站内互指的重复内容。
+const canonPath = Astro.url.pathname.endsWith("/") ? Astro.url.pathname : `${Astro.url.pathname}/`;
+const canonical = new URL(canonPath, Astro.site).href;
 const ogImage = new URL("/og.png", Astro.site).href;
 const ogAlt = "FFmpeg 中文站：录制、转换与流化音视频的完整方案";
 ---
@@ -33,9 +37,10 @@ const ogAlt = "FFmpeg 中文站：录制、转换与流化音视频的完整方�
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <link rel="sitemap" href="/sitemap-index.xml" />
     {noindex && <meta name="robots" content="noindex" />}
-    <!-- 字体预加载：图标字体是 font-display:block（未到就空白），标题字体会引起可见回流 -->
+    <!-- 字体预加载：图标字体是 font-display:swap、标题 700 在首屏 H1/品牌处用，两者晚到都会引起可见回流 -->
     <link rel="preload" href="/fonts/phosphor-regular.woff2" as="font" type="font/woff2" crossorigin />
     <link rel="preload" href={spaceGrotesk500} as="font" type="font/woff2" crossorigin />
+    <link rel="preload" href={spaceGrotesk700} as="font" type="font/woff2" crossorigin />
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="FFmpeg" />
     <meta property="og:locale" content="zh_CN" />
@@ -48,6 +53,8 @@ const ogAlt = "FFmpeg 中文站：录制、转换与流化音视频的完整方�
     <meta property="og:image:height" content="630" />
     <meta property="og:image:alt" content={ogAlt} />
     <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content={title} />
+    <meta name="twitter:description" content={description} />
     <meta name="twitter:image" content={ogImage} />
     <meta name="twitter:image:alt" content={ogAlt} />
     <meta name="theme-color" content="#121513" media="(prefers-color-scheme: dark)" />
@@ -55,6 +62,19 @@ const ogAlt = "FFmpeg 中文站：录制、转换与流化音视频的完整方�
     <script is:inline>
       (() => {
         const root = document.documentElement;
+        // 地址栏颜色跟随实际主题：静态 media 标签只懂系统偏好，手动切换后靠这个后置标签覆盖
+        // （同名 meta 取最后一个匹配的，无 media 的永远匹配且排最后，天然胜出）。
+        const syncMeta = () => {
+          const mode = root.dataset.theme === "light" ? "light" : "dark";
+          let m = document.querySelector('meta[name="theme-color"][data-live]');
+          if (!m) {
+            m = document.createElement("meta");
+            m.setAttribute("name", "theme-color");
+            m.setAttribute("data-live", "true");
+            document.head.appendChild(m);
+          }
+          m.setAttribute("content", mode === "light" ? "#f2f4f0" : "#121513");
+        };
         const apply = () => {
           let mode = null;
           try {
@@ -66,6 +86,7 @@ const ogAlt = "FFmpeg 中文站：录制、转换与流化音视频的完整方�
               : "dark";
           }
           root.dataset.theme = mode;
+          syncMeta();
         };
         apply();
         window
@@ -88,5 +109,71 @@ const ogAlt = "FFmpeg 中文站：录制、转换与流化音视频的完整方�
     </main>
     <SiteFooter />
     <SearchDialog />
+    <script is:inline>
+      // 表格增强：.prose-doc 下的 table 包一层 .table-wrap 接管横向滚动，
+      // 这样 thead sticky 才能相对视口生效；wrap 加 tabindex + region 保证键盘可达。
+      (() => {
+        const tables = document.querySelectorAll(".prose-doc table");
+        for (const table of tables) {
+          if (table.closest(".table-wrap")) continue;
+          const wrap = document.createElement("div");
+          wrap.className = "table-wrap";
+          wrap.setAttribute("tabindex", "0");
+          wrap.setAttribute("role", "region");
+          wrap.setAttribute("aria-label", "数据表格，可横向滚动");
+          table.replaceWith(wrap);
+          wrap.append(table);
+        }
+      })();
+      // 代码块增强：每个 pre 包一层 .code-wrap 并注入复制按钮；
+      // pre 本身加 tabindex + region（横向滚动区键盘可达）。
+      (() => {
+        const pres = document.querySelectorAll("main pre");
+        for (const pre of pres) {
+          if (pre.closest(".code-wrap")) continue;
+          pre.setAttribute("tabindex", "0");
+          pre.setAttribute("role", "region");
+          pre.setAttribute("aria-label", "代码示例，可横向滚动");
+          const wrap = document.createElement("div");
+          wrap.className = "code-wrap";
+          pre.replaceWith(wrap);
+          wrap.append(pre);
+          const btn = document.createElement("button");
+          btn.type = "button";
+          btn.className = "code-copy";
+          btn.setAttribute("aria-label", "复制代码块");
+          btn.innerHTML = '<i class="ph ph-copy" aria-hidden="true"></i>';
+          btn.addEventListener("click", async () => {
+            const code = pre.querySelector("code");
+            const text = (code ? code.innerText : pre.innerText).replace(/\n$/, "");
+            let ok = false;
+            try {
+              await navigator.clipboard.writeText(text);
+              ok = true;
+            } catch {
+              const ta = document.createElement("textarea");
+              ta.value = text;
+              document.body.appendChild(ta);
+              ta.select();
+              try {
+                ok = document.execCommand("copy");
+              } catch {}
+              ta.remove();
+            }
+            btn.classList.toggle("is-done", ok);
+            btn.innerHTML = ok
+              ? '<i class="ph ph-check" aria-hidden="true"></i>'
+              : '<i class="ph ph-copy" aria-hidden="true"></i>';
+            btn.setAttribute("aria-label", ok ? "已复制" : "复制失败，请手动选择复制");
+            window.setTimeout(() => {
+              btn.classList.remove("is-done");
+              btn.innerHTML = '<i class="ph ph-copy" aria-hidden="true"></i>';
+              btn.setAttribute("aria-label", "复制代码块");
+            }, 1600);
+          });
+          wrap.append(btn);
+        }
+      })();
+    </script>
   </body>
 </html>

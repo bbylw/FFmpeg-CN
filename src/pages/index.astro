@@ -44,6 +44,11 @@ const fmt = await listEntries("formats.mdx");
 const cod = await listEntries("codecs.mdx");
 const flt = await listEntries("filters.mdx");
 const dev = await listEntries("devices.mdx");
+// 解析失败（文件改名/表头改字）时直接让构建炸掉，别把“0 条目”发上线。
+// 注意：计数逻辑依赖「全表」表头含 名称 + 支持/平台/用途，改表结构时同步改 listEntries。
+for (const [name, n] of [["formats", fmt], ["codecs", cod], ["filters", flt], ["devices", dev]] as const) {
+  if (n <= 0) throw new Error(`[index] ${name}.mdx 条目解析为 0，请检查表格结构或文件名`);
+}
 
 const recipes = [
   {

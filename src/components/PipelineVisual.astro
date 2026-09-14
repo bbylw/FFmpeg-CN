@@ -330,4 +330,34 @@
       opacity: 0.9;
     }
   }
+  /* 滚出视口暂停流动动画：首屏组件在长页常驻后台跑Infinite，吃低端机 CPU */
+  .sv.is-paused .pkt rect {
+    animation-play-state: paused;
+  }
+  @media print {
+    /* 纸上只留管线骨架，半路 packet 圆点无意义且费墨 */
+    .sv .pkt {
+      display: none;
+    }
+  }
 </style>
+
+<script>
+  // 离屏暂停 packet 动画，进视口再续跑（animation-play-state 不丢进度）
+  (() => {
+    const svgs = document.querySelectorAll("svg.sv");
+    if (!svgs.length || !("IntersectionObserver" in window)) return;
+    const io = new IntersectionObserver(
+      (entries) => {
+        for (const e of entries) {
+          e.target.classList.toggle("is-paused", !e.isIntersecting);
+        }
+      },
+      { threshold: 0 }
+    );
+    svgs.forEach((s) => {
+      (s as SVGElement).classList.add("is-paused");
+      io.observe(s);
+    });
+  })();
+</script>

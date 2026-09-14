@@ -9,7 +9,8 @@
 // 直接报错退出（历史上 `ph-magnifier-lg`、`ph-heart-bold` 就是拼错后静默不可见的）。
 //
 // 用法：bun run icons
-import { readdir, readFile, writeFile, mkdir, copyFile } from "node:fs/promises";
+import { readdir, readFile, writeFile, mkdir } from "node:fs/promises";
+import { spawnSync } from "node:child_process";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -84,7 +85,9 @@ if (problems.length) {
 
 used.sort((a, b) => a.name.localeCompare(b.name));
 
-// 前缀（@font-face + .ph 基础规则）原样取自包，只把字体源换成单一 woff2
+// 前缀（@font-face + .ph 基础规则）原样取自包，只把字体源换成单一 woff2。
+// font-display:block 会让图标在字体到达前直接空白（FOIT），本站已 preload，
+// 改成 swap：字体稍晚到也只是闪一下系统回退，不丢信息。
 const prefixEnd = pkgCss.search(/\.ph\.ph-[a-z0-9-]+:before/);
 if (prefixEnd < 0) throw new Error("无法定位 Phosphor 基础规则段");
 let prefix = pkgCss.slice(0, prefixEnd);
@@ -93,6 +96,7 @@ prefix = prefix.replace(
   `src: url("${FONT_URL}") format("woff2");\n`
 );
 if (!prefix.includes(FONT_URL)) throw new Error("字体源替换失败");
+prefix = prefix.replace(/font-display:\s*block\s*;/, "font-display: swap;");
 
 const banner = `/* 由 scripts/build-icons.mjs 生成，请勿手改。
    仅包含 src/ 中实际使用的 ${used.length} 个字形；新增图标后跑一次 bun run icons。
@@ -115,7 +119,32 @@ if (process.argv.includes("--check")) {
   console.log(`icons.css 已是最新（${used.length} 个字形）`);
 } else {
   await mkdir(path.dirname(OUT_FONT), { recursive: true });
-  await copyFile(path.join(PKG_DIR, "Phosphor.woff2"), OUT_FONT);
+  // 真子集：只保留实际用到的 unicodes（CSS 里 content:"\eXXX" 即码点）。
+  // 16 字形约 2.3KB；直接拷全量 woff2 是 144KB。需要 Python fonttools + brotli：
+  // pip install fonttools brotli（CI 见 deploy.yml）。不可用则回退全量拷贝并告警。
+  const unicodes = used
+    .map((u) => "U+" + u.glyph.replace(/^\\/, "").toUpperCase())
+    .join(",");
+  const subset = spawnSync(
+    "python",
+    [
+      "-m", "fontTools.subset",
+      path.join(PKG_DIR, "Phosphor.woff2"),
+      `--unicodes=${unicodes}`,
+      "--flavor=woff2",
+      `--output-file=${OUT_FONT}`,
+      "--layout-features=",
+      "--no-hinting",
+      "--desubroutinize",
+    ],
+    { stdio: "pipe", encoding: "utf8" }
+  );
+  if (subset.status !== 0) {
+    const { copyFile } = await import("node:fs/promises");
+    await copyFile(path.join(PKG_DIR, "Phosphor.woff2"), OUT_FONT);
+    console.warn("警告：pyftsubset 不可用，已回退全量字体（144KB）。请 pip install fonttools brotli 后重跑。");
+    if (subset.error) console.warn(String(subset.error.message ?? subset.error));
+  }
   await writeFile(OUT_CSS, content, "utf8");
   console.log(`icons.css 已生成：${used.length} 个字形`);
   console.log("  " + used.map((u) => u.token).join(" "));

@@ -12,9 +12,9 @@ FFmpeg 中文站：营销首页 + 完整中文文档站。仓库根 `README.md` 
   声明写在 `src/styles/fonts.css`，**只引 woff2**——@fontsource 现成的 `latin-500.css` 会把 woff/ttf 一起写进 `src` 列表，产物里白多几百 KB。
 - 图标：`@phosphor-icons/web` 的 `ph ph-*` 类名（避免 react 版缺失导出问题），但**不整包引入它的 CSS**。
   `scripts/build-icons.mjs` 扫描 `src/` 里实际用到的图标，只生成这些字形到 `src/styles/icons.css`，
-  字体裁到单一 woff2（`public/fonts/phosphor-regular.woff2`）。
-  全量 CSS 是 78KB/每页、字体资源 4MB；本站只用十几个图标，子集后是 1.8KB + 144KB。
-  **新增图标后必须跑 `bun run icons`**；该脚本同时是拼写守卫，类名不存在会直接报错
+  再用 `pyftsubset` 把字体按 unicodes 真裁到单一 woff2（`public/fonts/phosphor-regular.woff2`）。
+  全量 CSS 是 78KB/每页、字体资源 4MB；本站 18 个图标，子集后是 ~2KB + 2.4KB。
+  **新增图标后必须跑 `bun run icons`**（需 `pip install fonttools brotli`，缺了会回退全量字体并告警）；该脚本同时是拼写守卫，类名不存在会直接报错
   （历史上 `ph-magnifier-lg`、`ph-heart-bold` 就是拼错后静默不显示）。`bun run check` 会校验子集是否过期。
 
 ## 设计语言

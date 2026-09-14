@@ -1,7 +1,7 @@
 ---
 import { getCollection } from "astro:content";
 import Base from "../../layouts/Base.astro";
-import { GROUPS, groupRank, GROUP_BLURB, type Group } from "../../lib/site";
+import { GROUPS, groupRank, GROUP_BLURB, GROUP_SLUG, type Group } from "../../lib/site";
 
 const all = (await getCollection("docs")).sort(
   (a, b) =>
@@ -82,8 +82,8 @@ const rest = grouped
     <div class="mt-16 grid gap-x-12 gap-y-12 md:grid-cols-2 xl:grid-cols-3">
       {
         rest.map(({ group: g, pages }) => (
-          <section id={g} aria-labelledby={`h-${g}`}>
-            <h2 id={`h-${g}`} class="text-[15px] font-bold text-ink">
+          <section id={GROUP_SLUG[g]} aria-labelledby={`h-${GROUP_SLUG[g]}`} style="scroll-margin-top: var(--anchor-gap)">
+            <h2 id={`h-${GROUP_SLUG[g]}`} class="text-[15px] font-bold text-ink">
               {g}
             </h2>
             <p class="mt-1 text-[13px] text-ink-3">{GROUP_BLURB[g]}</p>

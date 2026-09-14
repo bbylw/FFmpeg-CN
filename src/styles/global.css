@@ -100,25 +100,25 @@ body {
 
 /* 细滚动条：与首页胶囊轨道一致，用于侧栏、代码块、宽表格、搜索结果 */
 .thin-scroll,
-.prose-doc pre,
-.prose-doc table {
+.table-wrap,
+.prose-doc pre {
   scrollbar-width: thin;
   scrollbar-color: var(--color-line-strong) transparent;
 }
 .thin-scroll::-webkit-scrollbar,
-.prose-doc pre::-webkit-scrollbar,
-.prose-doc table::-webkit-scrollbar {
+.table-wrap::-webkit-scrollbar,
+.prose-doc pre::-webkit-scrollbar {
   width: 8px;
   height: 8px;
 }
 .thin-scroll::-webkit-scrollbar-track,
-.prose-doc pre::-webkit-scrollbar-track,
-.prose-doc table::-webkit-scrollbar-track {
+.table-wrap::-webkit-scrollbar-track,
+.prose-doc pre::-webkit-scrollbar-track {
   background: transparent;
 }
 .thin-scroll::-webkit-scrollbar-thumb,
-.prose-doc pre::-webkit-scrollbar-thumb,
-.prose-doc table::-webkit-scrollbar-thumb {
+.table-wrap::-webkit-scrollbar-thumb,
+.prose-doc pre::-webkit-scrollbar-thumb {
   background: var(--color-line-strong);
   border-radius: 999px;
 }
@@ -183,17 +183,6 @@ html[data-theme="dark"] .astro-code span {
 /* 从本页目录 / 搜索结果 / 面包屑跳进来时，标题不能被吸顶头部盖住 */
 .prose-doc :is(h1, h2, h3, h4) {
   scroll-margin-top: var(--anchor-gap);
-}
-.prose-doc h2 .doc-link,
-.prose-doc h3 .doc-link {
-  opacity: 0;
-  transition: opacity 0.15s ease;
-}
-.prose-doc h2:hover .doc-link,
-.prose-doc h3:hover .doc-link,
-.prose-doc h2 .doc-link:focus,
-.prose-doc h3 .doc-link:focus {
-  opacity: 1;
 }
 .prose-doc p {
   margin: 0 0 1.1em;
@@ -278,16 +267,60 @@ html[data-theme="dark"] .astro-code span {
   font-size: 0.84rem;
   white-space: pre;
 }
+
+/* 代码块复制按钮：由 Base.astro 内联脚本给 main 下每个 pre 包 .code-wrap 并注入按钮。
+   按钮平时隐藏（hover / 键盘聚焦时出现），触屏无 hover 则常显。 */
+.code-wrap {
+  position: relative;
+}
+.code-copy {
+  position: absolute;
+  top: 0.55rem;
+  right: 0.55rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 999px;
+  border: 1px solid var(--color-line);
+  background: var(--color-surface);
+  color: var(--color-ink-3);
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+main pre:hover .code-copy,
+main pre:focus-within .code-copy,
+.code-copy:focus-visible {
+  opacity: 1;
+}
+@media (hover: none) {
+  .code-copy {
+    opacity: 1;
+  }
+}
+.code-copy:hover {
+  color: var(--color-ink);
+  border-color: var(--color-line-strong);
+}
+.code-copy.is-done {
+  color: var(--color-accent);
+  border-color: var(--color-accent);
+}
 .prose-doc table {
   width: 100%;
   border-collapse: collapse;
-  margin: 0 0 1.6em;
+  margin: 0;
   font-size: 0.875rem;
   line-height: 1.65;
-  display: block;
-  overflow-x: auto;
   /* 数字等宽，参数表里同一列的数值才能对齐 */
   font-variant-numeric: tabular-nums;
+}
+/* 横向滚动由外层 .table-wrap 承担（Base 内联脚本自动包裹），
+   这样 thead 才能相对视口 sticky——table 自己当滚动容器时会把 sticky 框死。 */
+.table-wrap {
+  overflow-x: auto;
+  margin: 0 0 1.6em;
 }
 .prose-doc thead th {
   text-align: left;
@@ -296,11 +329,19 @@ html[data-theme="dark"] .astro-code span {
   padding: 0.55rem 0.85rem;
   border-bottom: 2px solid var(--color-line-strong);
   white-space: nowrap;
+  /* 长表（编解码器/格式/滤镜动辄上百行）往下滚时表头吸在站点头部下方 */
+  position: sticky;
+  top: var(--header-h);
+  z-index: 1;
+  background: var(--color-bg);
 }
 .prose-doc tbody td {
   padding: 0.5rem 0.85rem;
   border-bottom: 1px solid var(--color-line);
   vertical-align: top;
+}
+.prose-doc tbody tr:nth-child(even) {
+  background: color-mix(in oklab, var(--color-accent-soft) 22%, transparent);
 }
 .prose-doc tbody tr:hover {
   background: color-mix(in oklab, var(--color-accent-soft) 45%, transparent);
@@ -354,6 +395,7 @@ html[data-theme="dark"] .astro-code span {
   footer,
   aside,
   .skip-link,
+  .code-copy,
   #search-root {
     display: none !important;
   }

@@ -1,7 +1,7 @@
 ---
 import { getCollection, render, type CollectionEntry } from "astro:content";
 import Base from "./Base.astro";
-import { GROUPS, groupRank, OFFICIAL } from "../lib/site";
+import { GROUPS, groupRank, GROUP_SLUG, OFFICIAL } from "../lib/site";
 import type { Group } from "../lib/site";
 
 interface Props {
@@ -46,7 +46,7 @@ const jsonLd = {
       "@type": "BreadcrumbList",
       itemListElement: [
         { "@type": "ListItem", position: 1, name: "文档", item: docsIndex },
-        { "@type": "ListItem", position: 2, name: group, item: `${docsIndex}#${group}` },
+        { "@type": "ListItem", position: 2, name: group, item: `${docsIndex}#${GROUP_SLUG[group as Group]}` },
         { "@type": "ListItem", position: 3, name: title, item: canonical },
       ],
     },
@@ -91,11 +91,17 @@ const jsonLd = {
     </aside>
 
     <article class="min-w-0 flex-1 py-8 lg:py-12">
-      <p class="mb-3 text-[13px] text-ink-3">
-        <a href="/docs/" class="hover:text-accent">文档</a>
-        <span aria-hidden="true"> / </span>
-        <a href={`/docs/#${group}`} class="hover:text-accent">{group}</a>
-      </p>
+      <nav aria-label="面包屑" class="mb-3">
+        <ol class="flex items-center gap-1 text-[13px] text-ink-3">
+          <li>
+            <a href="/docs/" class="hover:text-accent">文档</a>
+          </li>
+          <li aria-hidden="true">/</li>
+          <li>
+            <a href={`/docs/#${GROUP_SLUG[group as Group]}`} class="hover:text-accent">{group}</a>
+          </li>
+        </ol>
+      </nav>
 
       <!-- 小屏没有侧栏，用 details 提供折叠目录；桌面隐藏 -->
       <details class="mb-6 rounded-tile border border-line bg-surface lg:hidden">
@@ -245,10 +251,19 @@ const jsonLd = {
       if (i === active) return;
       if (active >= 0 && links[active]) {
         links[active].classList.remove("!border-accent", "!text-accent");
+        links[active].removeAttribute("aria-current");
       }
       active = i;
-      if (links[i]) links[i].classList.add("!border-accent", "!text-accent");
+      if (links[i]) {
+        links[i].classList.add("!border-accent", "!text-accent");
+        links[i].setAttribute("aria-current", "true");
+      }
     };
+    // 顶部偏移与 --header-h 同源：头部高度改了这里自动跟，不再手写 -76px
+    const headerH =
+      Number.parseFloat(
+        getComputedStyle(document.documentElement).getPropertyValue("--header-h")
+      ) || 60;
     const io = new IntersectionObserver(
       (entries) => {
         for (const e of entries) {
@@ -258,8 +273,7 @@ const jsonLd = {
           }
         }
       },
-      // 与 --anchor-gap 一致：吸顶头部 + 1rem
-      { rootMargin: "-76px 0px -70% 0px" }
+      { rootMargin: `-${headerH + 16}px 0px -70% 0px` }
     );
     heads.forEach((h) => io.observe(h));
   })();

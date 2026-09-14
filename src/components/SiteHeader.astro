@@ -114,6 +114,9 @@ const isActive = (href: string) =>
       const root = document.documentElement;
       const next = root.dataset.theme === "light" ? "dark" : "light";
       root.dataset.theme = next;
+      document
+        .querySelector('meta[name="theme-color"][data-live]')
+        ?.setAttribute("content", next === "light" ? "#f2f4f0" : "#121513");
       try {
         localStorage.setItem("theme", next);
       } catch {}
@@ -149,7 +152,7 @@ const isActive = (href: string) =>
       .addEventListener("change", (m) => m.matches && setOpen(false));
   })();
 
-  // 搜索快捷键
+  // 搜索快捷键 + 索引空闲预取（103KB，首次打开才下会有半秒白等）
   (() => {
     window.addEventListener("keydown", (e) => {
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
@@ -160,5 +163,25 @@ const isActive = (href: string) =>
     document.getElementById("search-open")?.addEventListener("click", () => {
       window.dispatchEvent(new CustomEvent("ffmpeg:search"));
     });
+    // 省流量模式跳过；hover 搜索按钮也触发一次，双保险只跑一次
+    let prefetched = false;
+    const prefetch = () => {
+      if (prefetched) return;
+      prefetched = true;
+      try {
+        fetch("/search-index.json").catch(() => {});
+      } catch {}
+    };
+    const nav = navigator as Navigator & { saveData?: boolean };
+    if (!nav.saveData) {
+      // 用 typeof 判断而不用 `"requestIdleCallback" in window`：后者会把 window 收窄成 never，astro check 报错
+      const ric = (window as Window & { requestIdleCallback?: (cb: () => void, opts?: { timeout: number }) => void }).requestIdleCallback;
+      if (typeof ric === "function") {
+        ric.call(window, prefetch, { timeout: 4000 });
+      } else {
+        window.setTimeout(prefetch, 2500);
+      }
+      document.getElementById("search-open")?.addEventListener("pointerenter", prefetch, { once: true });
+    }
   })();
 </script>
