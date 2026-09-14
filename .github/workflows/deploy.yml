@@ -18,13 +18,19 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      # 版本说明（升级理由与要求）：
+      # - checkout v7：v5 起跑在 Node 24，要求 runner >= v2.327.1（GitHub 托管 runner 天然满足）；
+      #   v7 另外禁止 pull_request_target / workflow_run 检出 fork PR，本流程是 on: push，不涉及
+      # - upload-pages-artifact v5：v4 起默认不含隐藏文件（dist 里没有 dotfile，不受影响），
+      #   v5 把内部的 upload-artifact 提到 v7
+      # - deploy-pages v5：跑在 Node 24，与 upload-pages-artifact v5 配套
+      - uses: actions/checkout@v7
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: latest
       - run: bun install --frozen-lockfile
       - run: bun run build
-      - uses: actions/upload-pages-artifact@v3
+      - uses: actions/upload-pages-artifact@v5
         with:
           path: dist
 
@@ -36,4 +42,4 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - id: deployment
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v5
