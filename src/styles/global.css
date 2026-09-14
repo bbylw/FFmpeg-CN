@@ -329,11 +329,9 @@ main pre:focus-within .code-copy,
   padding: 0.55rem 0.85rem;
   border-bottom: 2px solid var(--color-line-strong);
   white-space: nowrap;
-  /* 长表（编解码器/格式/滤镜动辄上百行）往下滚时表头吸在站点头部下方 */
-  position: sticky;
-  top: var(--header-h);
-  z-index: 1;
-  background: var(--color-bg);
+  /* 注意：不要给 th 加 position:sticky——Chrome 会把粘性表头画出重影
+     （表头+首行叠在一起，短表、未吸住时也出现，collapse/separate 都一样，
+     2026-09 在 download 页复现并经隔离实验证实）。长表可读性靠斑马纹保证。 */
 }
 .prose-doc tbody td {
   padding: 0.5rem 0.85rem;
