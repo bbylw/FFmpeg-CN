@@ -84,12 +84,35 @@ node .shots/check-mdx.mjs      # 用 mdx-js 引擎预检所有 MDX（<url> autol
 
 给人看的预览一律走 portless：`portless ffmpeg-cn bun run preview`（真实 URL 从 `portless list` 读）。重建后必须重启 preview，避免旧 dist 缓存。
 
-## 发布前检查清单（需用户点头后才执行）
+## 发布流程（首次发布于 2026-09-14 已完成）
 
-1. `astro.config.mjs` 与 `public/robots.txt` 中的占位域名 `https://ffmpeg.localhost.placeholder` 换成最终域名。
-2. 创建 GitHub 仓库并推送（master 分支），启用 Pages（workflow 已备好在 `.github/workflows/deploy.yml`）。
-3. 自定义域名用 `gh api` 设置 `cname` 字段（不要往 public/ 放 CNAME 文件），DNS 生效后 HTTPS 由 GitHub 自动签发。
-4. 线上抽查：明暗主题、搜索、移动端、`/404.html`、`/sitemap-index.xml`。
+1. `astro.config.mjs` 与 `public/robots.txt` 中的占位域名换成最终域名（canonical / og / sitemap 都由 `site` 派生，改这两处即可）。
+2. 推到 `master` 触发 `.github/workflows/deploy.yml`（bun install → build → upload → deploy）。
+3. 自定义域用 `gh api` 设 `cname`，**不要往 public/ 放 CNAME 文件**：
+
+   ```bash
+   gh api -X POST repos/bbylw/FFmpeg-CN/pages -f build_type=workflow   # 启用 Pages，构建源选 Actions
+   gh api -X PUT  repos/bbylw/FFmpeg-CN/pages -f cname=ffmpeg.ndjp.net
+   ```
+
+4. **坑：`github-pages` 环境的部署分支策略。** 环境默认可能只允许 `main`（本仓库最初就是），推 `master` 时 build 会成功、deploy 会报
+   `Branch "master" is not allowed to deploy to github-pages due to environment protection rules`。补一条分支策略再重跑 `--failed` 即可：
+
+   ```bash
+   gh api -X POST repos/bbylw/FFmpeg-CN/environments/github-pages/deployment-branch-policies \
+     -f name=master -f type=branch
+   gh run rerun <run-id> --failed
+   ```
+
+5. 线上抽查：`/`、`/docs/`、任一文档页、`/search-index.json`、`/sitemap-index.xml`、`/og.png`、`/fonts/phosphor-regular.woff2` 都应为 200，未知路径应返回真 404。
+   也可以让验收脚本直接量线上：`$env:AUDIT_BASE="https://ffmpeg.ndjp.net"; node .shots/ui-audit.mjs`。
+
+## 部署现状
+
+- 站点：<https://ffmpeg.ndjp.net>（GitHub Pages，自定义域，HTTPS 由 GitHub 签发）
+- 仓库：<https://github.com/bbylw/FFmpeg-CN>，`master` 分支，Pages 构建源为 GitHub Actions
+- DNS：由用户侧维护（指向 GitHub Pages）；`gh api repos/bbylw/FFmpeg-CN/pages` 的 `https_certificate.state` 为 `approved` 即表示 GitHub 已完成域名校验
+- 遗留：工作流用的 `actions/checkout@v4`、`upload-artifact@v4`、`deploy-pages@v4` 会被 GitHub 从 Node 20 强制升到 Node 24 并给出弃用告警（不影响运行），后续可升到各 action 的 v5
 
 ## 内容来源与授权
 
