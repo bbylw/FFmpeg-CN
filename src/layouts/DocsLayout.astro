@@ -91,7 +91,7 @@ const jsonLd = {
     </aside>
 
     <article class="min-w-0 flex-1 py-8 lg:py-12">
-      <nav aria-label="面包屑" class="mb-3">
+      <nav aria-label="面包屑" class="mb-3 print:hidden">
         <ol class="flex items-center gap-1 text-[13px] text-ink-3">
           <li>
             <a href="/docs/" class="hover:text-accent">文档</a>
@@ -103,8 +103,8 @@ const jsonLd = {
         </ol>
       </nav>
 
-      <!-- 小屏没有侧栏，用 details 提供折叠目录；桌面隐藏 -->
-      <details class="mb-6 rounded-tile border border-line bg-surface lg:hidden">
+      <!-- 小屏没有侧栏，用 details 提供折叠目录；桌面隐藏；打印隐藏 -->
+      <details class="mb-6 rounded-tile border border-line bg-surface lg:hidden print:hidden">
         <summary
           class="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 text-[15px] font-medium text-ink [&::-webkit-details-marker]:hidden"
         >

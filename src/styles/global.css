@@ -401,6 +401,20 @@ main pre:focus-within .code-copy,
   .prose-doc {
     max-width: none;
   }
+  /* 纸上没有横向滚动：代码块放开折行，宽表字号降一档，能印全才有存档价值。
+     注意必须双轴一起 visible——只写 overflow-x 时，另一轴的 auto 会把它重新算回 auto。 */
+  .table-wrap,
+  .prose-doc pre {
+    overflow-x: visible;
+    overflow-y: visible;
+  }
+  .prose-doc pre code {
+    white-space: pre-wrap;
+    overflow-wrap: break-word;
+  }
+  .prose-doc table {
+    font-size: 0.75rem;
+  }
   .prose-doc :is(pre, table, blockquote) {
     break-inside: avoid;
   }

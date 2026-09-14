@@ -11,14 +11,14 @@
   <div
     class="relative mx-auto mt-[12vh] w-[min(640px,calc(100vw-2rem))] overflow-hidden rounded-tile border border-line bg-elevated shadow-2xl shadow-black/30"
   >
-    <div class="flex items-center gap-3 border-b border-line px-4">
+    <div class="search-bar flex items-center gap-3 border-b border-line px-4">
       <i class="ph ph-magnifying-glass text-[18px] text-ink-3" aria-hidden="true"></i>
       <input
         id="search-input"
         type="search"
         role="combobox"
         aria-label="搜索文档关键词"
-        aria-expanded="true"
+        aria-expanded="false"
         aria-controls="search-results"
         aria-autocomplete="list"
         class="w-full bg-transparent py-3.5 text-[15px] text-ink outline-none placeholder:text-ink-3"
@@ -51,6 +51,13 @@
 <style is:global>
   #search-root::backdrop {
     display: none;
+  }
+  /* 输入框聚焦不走全局 2px 外发光（在大输入框上太重），改成本体下边框变色 */
+  #search-input:focus {
+    outline: none;
+  }
+  .search-bar:focus-within {
+    border-color: var(--color-accent);
   }
   #search-input::-webkit-search-cancel-button,
   #search-input::-webkit-search-decoration {
@@ -109,6 +116,8 @@
     root.classList.remove("hidden");
     document.body.style.overflow = "hidden";
     input?.focus();
+    // 下拉语义跟随实际结果：上次搜过且有结果，重开时仍是展开态
+    input?.setAttribute("aria-expanded", String(options.length > 0));
     ensureIndex();
   };
 
@@ -167,7 +176,14 @@
           t += 2;
           if (!ctx) {
             const from = Math.max(0, bi - 30);
-            ctx = (from > 0 ? "…" : "") + hit.x.slice(from, bi + term.length + 60) + "…";
+            const end = bi + term.length + 60;
+            let raw = hit.x.slice(from, end);
+            // 别把拉丁词拦腰截断（此前搜"硬件加速"会出来"…amples）覆盖了…"）：
+            // CJK 无空格不碰，只看切口两边是不是 ASCII 词字符
+            const isWord = (c: string) => /[A-Za-z0-9_./\-+]/.test(c);
+            if (from > 0 && isWord(hit.x[from - 1] ?? "")) raw = raw.replace(/^[A-Za-z0-9_./\-+]+/, "");
+            if (isWord(hit.x[end] ?? "")) raw = raw.replace(/[A-Za-z0-9_./\-+]+$/, "");
+            ctx = (from > 0 ? "…" : "") + raw + "…";
           }
         }
         if (t === 0) allFound = false;
@@ -201,6 +217,7 @@
       options.push(a);
     });
     if (options.length) setActive(0);
+    input?.setAttribute("aria-expanded", String(options.length > 0));
   }
 
   function markTerms(text: string, terms: string[]) {

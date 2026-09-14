@@ -131,6 +131,8 @@ const ogAlt = "FFmpeg 中文站：录制、转换与流化音视频的完整方�
         const pres = document.querySelectorAll("main pre");
         for (const pre of pres) {
           if (pre.closest(".code-wrap")) continue;
+          // 玩笑/装饰性代码块（如 404 的 not found）不值得复制：加 data-nocopy 豁免
+          if (pre.hasAttribute("data-nocopy")) continue;
           pre.setAttribute("tabindex", "0");
           pre.setAttribute("role", "region");
           pre.setAttribute("aria-label", "代码示例，可横向滚动");
