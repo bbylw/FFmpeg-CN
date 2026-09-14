@@ -1,5 +1,8 @@
 node_modules/
 dist/
 .astro/
-.shots/*.png
+# 截图只是本地验收留痕，不进版本库。
+# 注意 ** 必须带上：verify.mjs 写到 .shots/png/，而 `.shots/*.png` 的 * 不跨目录层级，
+# 之前那条规则因此从来没生效过（仓库里白背了 20MB 截图 + 80MB 历史）。
+.shots/**/*.png
 *.log
