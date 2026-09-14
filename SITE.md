@@ -129,7 +129,10 @@ node .shots/check-mdx.mjs      # 用 mdx-js 引擎预检所有 MDX（<url> autol
 - 站点：<https://ffmpeg.ndjp.net>（GitHub Pages，自定义域，HTTPS 由 GitHub 签发）
 - 仓库：<https://github.com/bbylw/FFmpeg-CN>，`master` 分支，Pages 构建源为 GitHub Actions
 - DNS：由用户侧维护（指向 GitHub Pages）；`gh api repos/bbylw/FFmpeg-CN/pages` 的 `https_certificate.state` 为 `approved` 即表示 GitHub 已完成域名校验
-- 遗留：工作流用的 `actions/checkout@v4`、`upload-artifact@v4`、`deploy-pages@v4` 会被 GitHub 从 Node 20 强制升到 Node 24 并给出弃用告警（不影响运行），后续可升到各 action 的 v5
+- 工作流用的 action：`actions/checkout@v7`、`oven-sh/setup-bun@v2`、`actions/upload-pages-artifact@v5`、`actions/deploy-pages@v5`
+  （2026-09 升到最新大版本，Node 20 弃用告警已消除：checkout v5 起与 deploy-pages v5 都跑在 Node 24）。
+  升级时注意两点：`upload-pages-artifact` 从 v4 起**默认不含隐藏文件**（dist 里若以后要放 `.nojekyll` 之类的东西得开 `include-hidden-files`）；
+  checkout v5 起要求 runner ≥ v2.327.1（GitHub 托管 runner 天然满足）。Actions 部署不走 Jekyll，所以 `_astro/` 这种下划线目录无需 `.nojekyll`（线上实测 200）。
 
 ## 内容来源与授权
 
