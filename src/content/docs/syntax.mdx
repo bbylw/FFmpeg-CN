@@ -1,0 +1,243 @@
+---
+title: 通用语法
+description: FFmpeg 所有工具共用的选项语法：引用转义、时间、颜色、声道布局与表达式求值。
+group: 通用语法
+order: 1
+source: https://ffmpeg.org/ffmpeg-utils.html
+---
+
+本页以官方 [ffmpeg-utils 手册](https://ffmpeg.org/ffmpeg-utils.html)（libavutil 提供的通用特性与工具）为主，汇总 ffmpeg、ffplay、ffprobe 所有工具共用的语法与格式约定；选项语法与流说明符取自 [ffmpeg 手册](https://ffmpeg.org/ffmpeg.html) 的通用章节。
+
+## 选项语法
+
+除非另有说明，所有数值选项都接受一个数字字符串，其后可以跟 SI 单位前缀（如 `K`、`M`、`G`）。前缀后追加 `i` 按二进制倍数解释（1024 的幂而非 1000 的幂）；追加 `B` 把数值乘以 8。因此 `KB`、`MiB`、`G`、`B` 都可用作数值后缀。
+
+不带参数的选项是布尔选项，出现即置真；在选项名前加 `no` 即置假，例如 `-nofoo` 把名为 `foo` 的布尔选项设为 false。
+
+接受参数的选项还支持特殊语法：命令行给出的参数被当作文件路径，实际取值从该文件加载。方法是在前导短横线之后、选项名之前加一个正斜杠 `/`：
+
+```bash
+ffmpeg -i INPUT -/filter:v filter.script OUTPUT
+```
+
+这会从名为 `filter.script` 的文件加载滤镜图描述。
+
+### AVOptions
+
+另一类选项由 libavformat、libavdevice、libavcodec 库直接提供，用 `-help` 可列出，分两类：generic（通用）可对任何容器、编解码器或设备设置（容器/设备类列在 AVFormatContext options 下，编解码器类列在 AVCodecContext options 下）；private（私有）特定于某个容器、设备或编解码器。例如向 MP3 写入 ID3v2.3 头而非默认的 ID3v2.4，使用 MP3 混流器的私有选项 `id3v2_version`：
+
+```bash
+ffmpeg -i input.flac -id3v2_version 3 out.mp3
+```
+
+## 流说明符
+
+有些选项按流生效（如码率、编解码器），流说明符（stream specifier）用于精确指定选项作用于哪个（些）流。它一般是在选项名后加冒号再接一串字符，例如 `-codec:a:1 ac3` 中的 `a:1` 匹配第二个音频流，为其选择 `ac3` 编解码器。一个说明符可匹配多个流，选项应用于所有匹配流，例如 `-b:a 128k` 中的 `:a` 匹配全部音频流。空说明符匹配所有流：`-codec copy` 或 `-codec: copy` 复制所有流而不重新编码。合法形式：
+
+* `stream_index`：按流索引匹配，如 `-threads:1 4` 把第二个流的线程数设为 4。作附加说明符时从已匹配流中选该编号的流。编号默认按 libavformat 探测顺序，指定流组/节目时按组/节目内顺序。
+* `stream_type[:additional_stream_specifier]`：类型取 `v`/`V`（视频）、`a`（音频）、`s`（字幕）、`d`（数据）、`t`（附件）。`v` 匹配所有视频流，`V` 排除封面图/缩略图类视频流；带附加说明符时匹配两者同时满足的流。
+* `g:group_specifier[:additional_stream_specifier]`：匹配属于某流组的流，组说明符可为组索引或 `#group_id` / `i:group_id`。
+* `p:program_id[:additional_stream_specifier]`：匹配属于指定节目（program）的流。
+* `#stream_id` 或 `i:stream_id`：按流 ID 匹配（如 MPEG-TS 中的 PID）。
+* `m:key[:value]`：匹配带元数据标签 `key`（值为 `value`；省略则任意值）的流，`key`/`value` 中的冒号需反斜杠转义。
+* `disp:dispositions[:additional_stream_specifier]`：匹配具有给定 disposition 的流，多个用 `+` 连接。
+* `u`：匹配配置可用的流：编解码器已定义且视频尺寸、音频采样率等必要信息齐备。
+
+注意：在 ffmpeg 中，按元数据匹配只对输入文件能正常工作。
+
+## 引用与转义
+
+除非显式另有说明，FFmpeg 采用如下引用与转义机制：
+
+* `'` 和 `\` 是特殊字符（分别用于引用和转义）。根据所处语法，可能还有其他特殊字符。
+* 特殊字符前加 `\` 即被转义。
+* 一对 `'` 之间的所有字符按字面量纳入被解析字符串。引号 `'` 本身无法被引用，需先闭合引号再转义它。
+* 首尾空白除非转义或被引用，否则从解析结果中去掉。
+
+在命令行或脚本中使用时，你可能需要按 shell 语法做第二层转义。`av_get_token`（`libavutil/avstring.h`）可按上述规则解析记号；源码树的 `tools/ffescape` 可在脚本中自动转义字符串。
+
+转义含 `'` 的字符串 `Crime d'Amour`：
+
+```text
+Crime d\'Amour
+```
+
+字符串含引号时，引用它需转义该引号：
+
+```text
+'Crime d'\''Amour'
+```
+
+用引用保留首尾空白：
+
+```text
+'  this string starts and ends with whitespaces  '
+```
+
+转义与引用可混用：
+
+```text
+' The string '\'string\'' is a string '
+```
+
+字面量 `\` 转义或引用皆可：`'c:\foo'` 可写成 `c:\\foo`。
+
+## 日期
+
+接受的语法：
+
+```text
+[(YYYY-MM-DD|YYYYMMDD)[T|t| ]]((HH:MM:SS[.m...]]])|(HHMMSS[.m...]]]))[Z]
+now
+```
+
+值为 `now` 时取当前时间。时间为本地时间，追加 `Z` 按 UTC 解释；未给出年月日时取当前年月日。
+
+## 时间时长
+
+两种语法。`[-][HH:]MM:SS[.m...]`：`HH` 为小时，`MM` 分钟（最多 2 位），`SS` 秒（最多 2 位），末尾 `m` 是 `SS` 的小数部分。或 `[-]S+[.m...][s|ms|us]`：`S` 为秒数，可带小数部分；可选后缀 `s`、`ms`、`us` 分别按秒、毫秒、微秒解释。可选的 `-` 表示负时长。
+
+以下都是合法时间时长：
+
+| 写法 | 含义 | 写法 | 含义 |
+| --- | --- | --- | --- |
+| `55` | 55 秒 | `0.2` | 0.2 秒 |
+| `200ms` | 200 毫秒，即 0.2s | `200000us` | 200000 微秒，即 0.2s |
+| `12:03:45` | 12 小时 03 分 45 秒 | `23.189` | 23.189 秒 |
+
+## 视频尺寸
+
+`宽x高` 形式的字符串，或下列尺寸缩写之一（此处节选常用项，完整缩写表见[官方手册](https://ffmpeg.org/ffmpeg-utils.html#Video-size)）。
+
+| 缩写 | 尺寸 | 缩写 | 尺寸 | 缩写 | 尺寸 |
+| --- | --- | --- | --- | --- | --- |
+| `ntsc` | 720x480 | `pal` | 720x576 | `film` | 352x240 |
+| `cif` | 352x288 | `4cif` | 704x576 | `16cif` | 1408x1152 |
+| `qvga` | 320x240 | `vga` | 640x480 | `svga` | 800x600 |
+| `xga` | 1024x768 | `wxga` | 1366x768 | `wuxga` | 1920x1200 |
+| `hd480` | 852x480 | `hd720` | 1280x720 | `hd1080` | 1920x1080 |
+| `2k` | 2048x1080 | `4k` | 4096x2160 | `uhd2160` | 3840x2160 |
+| `uhd4320` | 7680x4320 | `qcif` | 176x144 | | |
+
+## 视频帧率
+
+每秒生成帧数，写作 `frame_rate_num/frame_rate_den` 字符串、整数、浮点数或下列缩写之一。
+
+| 缩写 | 帧率 | 缩写 | 帧率 |
+| --- | --- | --- | --- |
+| `ntsc` | 30000/1001 | `pal` | 25/1 |
+| `qntsc` | 30000/1001 | `qpal` | 25/1 |
+| `sntsc` | 30000/1001 | `spal` | 25/1 |
+| `film` | 24/1 | `ntsc-film` | 24000/1001 |
+
+## 比率
+
+比率可写成表达式，或 `分子:分母` 形式。无穷大（1/0）或负值比率也视为合法，如需排除必须自行检查返回值。未定义值用字符串 `0:0` 表示。
+
+## 颜色
+
+颜色可以是下列颜色名之一（不区分大小写），或 `[0x|#]RRGGBB[AA]` 序列，其后还可跟 `@` 加 alpha 分量。alpha 可为 `0x` 加十六进制数或 0.0 到 1.0 的十进制数，表示不透明度（`0x00`/`0.0` 全透明，`0xff`/`1.0` 完全不透明），未指定按 `0xff`。`random` 产生随机颜色。
+
+常用色名节选，完整列表见[官方手册](https://ffmpeg.org/ffmpeg-utils.html#Color)：
+
+| 名称 | 值 | 名称 | 值 | 名称 | 值 |
+| --- | --- | --- | --- | --- | --- |
+| `Black` | 0x000000 | `White` | 0xFFFFFF | `Red` | 0xFF0000 |
+| `Green` | 0x008000 | `Blue` | 0x0000FF | `Yellow` | 0xFFFF00 |
+| `Cyan` | 0x00FFFF | `Aqua` | 0x00FFFF | `Magenta` | 0xFF00FF |
+| `Gray` | 0x808080 | `Silver` | 0xC0C0C0 | `Orange` | 0xFFA500 |
+| `Purple` | 0x800080 | `Lime` | 0x00FF00 | `Navy` | 0x000080 |
+
+## Channel Layout（声道布局）
+
+声道布局描述多声道音频流中各声道的空间位置，FFmpeg 为此使用一套特殊语法。单个声道由下列 ID 标识：
+
+| ID | 含义 | ID | 含义 | ID | 含义 |
+| --- | --- | --- | --- | --- | --- |
+| `FL` | 左前 | `FR` | 右前 | `FC` | 中置 |
+| `LFE` | 低频 | `BL` | 左后 | `BR` | 右后 |
+| `FLC` | 左前偏中 | `FRC` | 右前偏中 | `BC` | 后中置 |
+| `SL` | 左侧 | `SR` | 右侧 | `TC` | 顶中置 |
+| `TFL` | 左前上 | `TFC` | 前中上 | `TFR` | 右前上 |
+| `TBL` | 左后上 | `TBC` | 后中上 | `TBR` | 右后上 |
+| `DL` | 降混左 | `DR` | 降混右 | `WL` | 左宽 |
+| `WR` | 右宽 | `SDL` | 左环绕直入 | `SDR` | 右环绕直入 |
+| `LFE2` | 低频 2 | | | | |
+
+标准布局标识符：
+
+| 布局 | 组成 | 布局 | 组成 |
+| --- | --- | --- | --- |
+| `mono` | FC | `stereo` | FL+FR |
+| `2.1` | FL+FR+LFE | `3.0` | FL+FR+FC |
+| `3.0(back)` | FL+FR+BC | `4.0` | FL+FR+FC+BC |
+| `quad` | FL+FR+BL+BR | `quad(side)` | FL+FR+SL+SR |
+| `3.1` | FL+FR+FC+LFE | `5.0` | FL+FR+FC+BL+BR |
+| `5.0(side)` | FL+FR+FC+SL+SR | `4.1` | FL+FR+FC+LFE+BC |
+| `5.1` | FL+FR+FC+LFE+BL+BR | `5.1(side)` | FL+FR+FC+LFE+SL+SR |
+| `6.0` | FL+FR+FC+BC+SL+SR | `6.0(front)` | FL+FR+FLC+FRC+SL+SR |
+| `3.1.2` | FL+FR+FC+LFE+TFL+TFR | `hexagonal` | FL+FR+FC+BL+BR+BC |
+| `6.1` | FL+FR+FC+LFE+BC+SL+SR | `6.1` | FL+FR+FC+LFE+BL+BR+BC |
+| `6.1(front)` | FL+FR+LFE+FLC+FRC+SL+SR | `7.0` | FL+FR+FC+BL+BR+SL+SR |
+| `7.0(front)` | FL+FR+FC+FLC+FRC+SL+SR | `7.1` | FL+FR+FC+LFE+BL+BR+SL+SR |
+| `7.1(wide)` | FL+FR+FC+LFE+BL+BR+FLC+FRC | `7.1(wide-side)` | FL+FR+FC+LFE+FLC+FRC+SL+SR |
+| `5.1.2` | FL+FR+FC+LFE+BL+BR+TFL+TFR | `octagonal` | FL+FR+FC+BL+BR+BC+SL+SR |
+| `cube` | FL+FR+BL+BR+TFL+TFR+TBL+TBR | `5.1.4` | FL+FR+FC+LFE+BL+BR+TFL+TFR+TBL+TBR |
+| `7.1.2` | FL+FR+FC+LFE+BL+BR+SL+SR+TFL+TFR | `7.1.4` | FL+FR+FC+LFE+BL+BR+SL+SR+TFL+TFR+TBL+TBR |
+| `7.2.3` | FL+FR+FC+LFE+BL+BR+SL+SR+TFL+TFR+TBC+LFE2 | `9.1.4` | FL+FR+FC+LFE+BL+BR+FLC+FRC+SL+SR+TFL+TFR+TBL+TBR |
+| `9.1.6` | FL+FR+FC+LFE+BL+BR+FLC+FRC+SL+SR+TFL+TFR+TBL+TBR+TSL+TSR | `hexadecagonal` | FL+FR+FC+BL+BR+BC+SL+SR+WL+WR+TBL+TBR+TBC+TFC+TFL+TFR |
+| `binaural` | BIL+BIR | `downmix` | DL+DR | | |
+| `22.2` | FL+FR+FC+LFE+BL+BR+FLC+FRC+BC+SL+SR+TC+TFL+TFC+TFR+TBL+TBC+TBR+LFE2+TSL+TSR+BFC+BFL+BFR | | |
+
+自定义布局写成以 `+` 分隔的项序列，每项是单个声道名（如 `FL`、`FR`、`FC`、`LFE`），可在 `@` 后附加自定义名（如 `FL@Left`、`LFE@Low_Frequency`）。标准布局可由下列任一形式指定：
+
+* 单个声道名，或标准布局名（`mono`、`stereo`、`4.0`、`quad`、`5.0` 等）；
+* 十进制声道数后跟 `c`，取该声道数的默认布局（见 `av_channel_layout_default`；并非所有声道数都有默认布局）；
+* 十进制声道数后跟 `C`，得指定声道数的未知布局（并非所有布局字符串都支持未知布局）；
+* 以 `0x` 开头的十六进制布局掩码（见 `libavutil/channel_layout.h` 的 `AV_CH_*` 宏）。
+
+libavutil 53 版之前末尾 `c` 可省略，现在必需；布局掩码也可直接写十进制数（当且仅当后不跟 `c`/`C`）。
+
+## 表达式求值
+
+求值算术表达式时，FFmpeg 使用经 `libavutil/eval.h` 接口实现的内置公式求值器。表达式可含一元、二元运算符、常量与函数。`expr1;expr2` 依次求值两者，值为 `expr2`。二元运算符：`+`、`-`、`*`、`/`、`^`；一元运算符：`+`、`-`。内部变量经 `ld`/`st` 存取（索引 0 到 9）。
+
+可用函数（未注明者均对参数 `x` 或 `expr` 求值）：
+
+* `abs(x)` 绝对值；`sgn(x)` 符号；`min`/`max` 最小/最大值；`mod(x, y)` 除余数。
+* `acos(x)`/`asin(x)`/`atan(x)` 反三角函数；`atan2(y, x)` 求 `y/x` 反正切主值；`cos`/`cosh`/`sin`/`sinh`/`tan`/`tanh` 三角与双曲函数。
+* `between(x, min, max)`：`x` 不小于 min 且不大于 max 时返回 1，否则 0。`gt`/`gte`/`lt`/`lte` 大于、大于等于、小于、小于等于；`eq(x, y)` 相等返回 1；`not(expr)` 为零返回 1.0；`isinf(x)`/`isnan(x)` 无穷大/NaN 判断。
+* `bitand(x, y)`/`bitor(x, y)`：按位与/或，结果先转整数再运算，转换可能丢精度，大数（通常 2^53 及以上）注意意外结果。
+* `ceil(expr)` 向上取整（`ceil(1.5)` 是 `2.0`）；`floor(expr)` 向下取整（`floor(-1.5)` 是 `-2.0`）；`round(expr)` 四舍五入（`round(1.5)` 是 `2.0`）；`trunc(expr)` 向零取整（`trunc(-1.5)` 是 `-1.0`）。
+* `clip(x, min, max)`：返回裁剪到 `[min, max]` 的 `x`。`lerp(x, y, z)`：按 `z` 对 `x`、`y` 线性插值。
+* `exp(x)` 以欧拉数 e 为底的指数；`log(x)` 自然对数；`pow(x, y)` 即 `(x)^(y)`；`sqrt(expr)` 即 `(expr)^.5`；`hypot(x, y)` 同 C 同名函数，返回 `sqrt(x*x + y*y)`。
+* `gauss(x)`：`exp(-x*x/2) / sqrt(2*PI)`；`squish(x)`：`1/(1 + exp(4*x))`；`gcd(x, y)` 最大公约数（两者均 0 或任一为负时行为未定义）。
+* `if(x, y)`：`x` 非零返回 `y` 的值，否则 0；`if(x, y, z)`：非零返回 `y` 否则 `z`；`ifnot(x, y)`/`ifnot(x, y, z)` 反之（`x` 为零时取 `y`）。
+* `print(t)`/`print(t, l)`：按日志级别 `l` 打印 `t` 的值并返回该值。
+* `random(idx)`/`randomi(idx, min, max)`：伪随机值（分别位于 0.0 到 1.0、`[min, max]` 区间），`idx` 为存种子/状态的内部变量，先用 `st(idx)` 存入 64 位无符号种子。例：`st(0,42); print(random(0)); print(random(0)); print(random(0))`。
+* `root(expr, max)`：在 `0..max` 内求使 `expr`（以 `ld(0)` 为自变量）为 0 的输入值，`expr` 须连续。
+* `taylor(expr, x)`/`taylor(expr, x, idx)`：以表示 `ld(idx)` 阶导数的表达式在 `x` 处求泰勒级数，不收敛时未定义，`idx` 缺省 0；导数在 `y` 点时用 `taylor(expr, x-y)`。
+* `time(0)`：当前墙钟秒数。`while(cond, expr)`：`cond` 非零期间反复求值 `expr` 并返回最后一次结果，`cond` 始终为假则返回 NAN。
+* `ld(idx)` 读、`st(idx, expr)` 写内部变量（`st` 返回被存的值；目前变量不跨表达式共享）。
+
+常量：`PI` 约 3.14；`E` 即 `exp(1)`，约 2.718；`PHI` 黄金分割率 `(1+sqrt(5))/2`，约 1.618。
+
+约定"值非零即为真"时，`*` 相当于 AND，`+` 相当于 OR，例如 `if (A AND B) then C` 等价于 `if(A*B, C)`。在 C 代码中可扩展一元、二元函数列表并注册常量。求值器认识 SI 前缀：追加 `i` 按 2 的幂解释；后缀 `B` 乘 8，可跟在单位前缀后或单独使用（如 `KB`、`MiB`、`G`、`B`）：
+
+| 前缀 | 幂 | 前缀 | 幂 | 前缀 | 幂 |
+| --- | --- | --- | --- | --- | --- |
+| `y` | 10^-24 / 2^-80 | `z` | 10^-21 / 2^-70 | `a` | 10^-18 / 2^-60 |
+| `f` | 10^-15 / 2^-50 | `p` | 10^-12 / 2^-40 | `n` | 10^-9 / 2^-30 |
+| `u` | 10^-6 / 2^-20 | `m` | 10^-3 / 2^-10 | `c` | 10^-2 |
+| `d` | 10^-1 | `h` | 10^2 | `k` | 10^3 / 2^10 |
+| `K` | 10^3 / 2^10 | `M` | 10^6 / 2^20 | `G` | 10^9 / 2^30 |
+| `T` | 10^12 / 2^40 | `P` | 10^15 / 2^50 | `E` | 10^18 / 2^60 |
+| `Z` | 10^21 / 2^70 | `Y` | 10^24 / 2^80 | | |
+
+## 参见
+
+[ffmpeg](/docs/ffmpeg/)、[ffplay](/docs/ffplay/)、[ffprobe](/docs/ffprobe/)、libavutil
+
+## 作者
+
+FFmpeg 开发者（The FFmpeg developers）。作者详情见项目 Git 历史（[https://git.ffmpeg.org/ffmpeg](https://git.ffmpeg.org/ffmpeg)，如执行 `git log`）；各组件维护者列在源码树 `MAINTAINERS` 文件中。

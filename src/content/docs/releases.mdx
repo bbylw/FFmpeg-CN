@@ -1,0 +1,131 @@
+---
+title: 版本与动态
+description: FFmpeg 版本发布时间线与项目动态，当前最新为 8.1 "Hoare"。
+group: 资源
+order: 2
+source: https://ffmpeg.org/index.html
+---
+
+本页整理自 FFmpeg 官网 News 区，按时间倒序排列。下载各版本源码请见[下载页](/docs/download/)，更早的新闻请查[官方 News 存档](https://ffmpeg.org/index.html#news)。
+
+## 版本时间线
+
+### FFmpeg 8.1 "Hoare"（2026-03-16）
+
+新的小版本发行版 [FFmpeg 8.1 "Hoare"](https://ffmpeg.org/download.html#release_8.1)（代号取自英国计算机科学家 Charles Antony Richard Hoare）现已发布，亮点如下：
+
+- 解码器：xHE-AAC、Mps212（实验性）、经由 libmpeghdec 的 MPEG-H 解码
+- EXIF 元数据解析
+- LCEVC：支持解析并转发元数据
+- 基于 Vulkan compute 的编解码器：ProRes 编码与解码、DPX 解码
+- D3D12：D3D12 的 H.264/AV1 编码，以及 scale_d3d12、mestimate_d3d12、deinterlace_d3d12 滤镜
+- Rockchip H.264/HEVC 硬件编码
+- IAMF：Projection 模式 Ambisonic Audio Elements 的混流与解流
+- 格式：hxvs 解流器
+- 滤镜：drawvg、vpp_amf
+
+本版本包含大量内部改动与 bug 修复，为即将到来的 swscale 重写打的基础正在推进。Vulkan compute 编解码器和若干滤镜不再依赖运行时 GLSL 编译，初始化因此更快。Khronos 官方博客同步发表了关于 Vulkan Compute 编解码器实现的[配套文章](https://www.khronos.org/blog/video-encoding-and-decoding-with-vulkan-compute-shaders-in-ffmpeg)，介绍实现细节与后续计划。除非你使用当前 git master，否则建议用户、发行者和系统集成商升级。
+
+### FFmpeg 8.0 "Huffman"（2025-08-22）
+
+新的大版本 [FFmpeg 8.0 "Huffman"](https://ffmpeg.org/download.html#release_8.0)（代号取自 David A. Huffman）经过数次延期并伴随整个基础设施现代化，成为项目史上规模最大的发行之一。新功能概览：
+
+- 原生解码器：APV、ProRes RAW、RealVideo 6.0、Sanyo LD-ADPCM、G.728
+- VVC 解码器改进：IBC、ACT、调色板模式
+- 基于 Vulkan compute 的编解码器：FFv1（编解码）、ProRes RAW（仅解码）
+- 硬件加速解码：Vulkan VP9、VAAPI VVC、OpenHarmony H264/5
+- 硬件加速编码：Vulkan AV1、OpenHarmony H264/5
+- 格式：MCC、G.728、Whip、APV
+- 滤镜：colordetect、pad_cuda、scale_d3d11、Whisper 等
+
+新增了一整类纯 Vulkan compute 实现的编解码器。Vulkan 是跨平台的开放 API 标准，这些编解码器不依赖特定硬件加速器，而是基于 compute shader，可运行在任何 Vulkan 1.3 实现上。解码器沿用既有 hwaccel API 与命令，启用 [Vulkan 解码](https://trac.ffmpeg.org/wiki/HWAccelIntro#Vulkan)即可自动使用；编码器则需显式指定新编码器（如 `ffv1_vulkan`）。ProRes（编解码）与 VC-2（编解码）实现已完成并处于评审中，将在下个 minor 版本合入。只有专为并行化解码设计的编解码器适合这样实现，暂无计划为主流编解码器提供同类支持。视硬件不同，这些编解码器可带来显著提速，适用于非线性剪辑、无损屏幕录制与直播等场景。
+
+项目基础设施同步现代化：邮件列表服务器全面升级，并上线了基于 Forgejo 的新代码托管站 [code.ffmpeg.org](https://code.ffmpeg.org/) 接受贡献。
+
+### FFmpeg 7.1 "Péter"（2024-09-30）
+
+新的大版本 [FFmpeg 7.1 "Péter"](https://ffmpeg.org/download.html#release_7.1) 现已发布，完整变更见 [Changelog](https://git.ffmpeg.org/gitweb/ffmpeg.git/blob/refs/heads/release/7.1:/Changelog)。要点：
+
+- 7.0 中以实验性身份合入的 VVC 解码器经过充分打磨与优化，正式转为稳定，该编解码器正开始被广播标准化组织采用
+- 新增原生 AAC USAC 解码器（xHE-AAC 编码体系的一部分），该格式凭借丰富的响度归一化元数据正被流媒体网站采用
+- 支持 MV-HEVC 解码，这一立体编码工具已见于新款手机与 VR 头显拍摄的内容
+- 通过外部库支持 LC-EVC 解码（一种尝试提升编解码器质量的增强元数据层）
+- 合入 Vulkan H.264 与 HEVC 编码，至此可实现完全基于 Vulkan 的解码、滤镜、编码流水线，编码器功能与其 VAAPI 版本对齐；Khronos 已宣布 AV1 编码也将进入 Vulkan，FFmpeg 计划首日支持
+- 内部改进：全面重建了 full-range 色彩数据的传递路径，色彩范围现在能被正确且一致地转发到滤镜、编码器、混流器；此前该问题拖延了十余年
+- Matroska 与 MP4 支持裁剪元数据，这对存档和 AV1 尤为重要（硬件编码器依赖该信令）
+
+### FFmpeg 7.0 "Dijkstra"（2024-04-05）
+
+新的大版本 [FFmpeg 7.0 "Dijkstra"](https://ffmpeg.org/download.html#release_7.0) 现已发布。对多数用户最值得注意的变化是原生 VVC 解码器（在更多模糊测试完成前仍为实验性）、IAMF 支持以及多线程的 ffmpeg 命令行工具。
+
+本版本不向后兼容：移除了 6.0 之前已废弃的 API。对库调用者最大的变化是移除旧的位掩码声道布局 API，由 AVChannelLayout API 取代，后者支持自定义声道排序、Ambisonics 等特性。部分废弃的 ffmpeg CLI 选项也被移除，构建代码现在要求 C11 兼容编译器。相比 6.1，仓库中约有 100 位作者贡献的 2000 个新提交，触及约 2000 个文件、超过 10 万行。完整列表见 [Changelog](https://git.ffmpeg.org/gitweb?p=ffmpeg.git;a=blob_plain;f=Changelog;hb=n7.0) 与 [APIchanges](https://git.ffmpeg.org/gitweb?p=ffmpeg.git;a=blob_plain;f=doc/APIchanges;hb=n7.0)。
+
+### FFmpeg 6.1 "Heaviside"（2023-11-10）
+
+新的大版本 [FFmpeg 6.1 "Heaviside"](https://ffmpeg.org/download.html#release_6.1) 现已发布，亮点：
+
+- libaribcaption 解码器
+- Playdate 视频解码器与解流器
+- 扩展 VAAPI 对 Windows 上 libva-win32 的支持
+- afireqsrc 音频源滤镜
+- arls 滤镜
+- ffmpeg CLI 新选项：-readrate_initial_burst
+- zoneplate 视频源滤镜
+- setpts 与 asetpts 滤镜支持命令
+- Vulkan 解码 hwaccel，支持 H264、HEVC 与 AV1
+- color_vulkan、bwdif_vulkan、nlmeans_vulkan、xfade_vulkan 滤镜
+- RivaTuner 视频解码器
+- vMix 视频解码器
+- Essential Video Coding 解析器、混流器与解流器
+- Essential Video Coding 帧合并比特流过滤器
+- bwdif_cuda 滤镜
+- Microsoft RLE 视频编码器
+- Raw AC-4 混流器与解流器
+- Raw VVC 比特流解析器、混流器与解流器
+- 编辑 VVC 流元数据的比特流过滤器
+- VVC 从 MP4 转 Annex B 的比特流过滤器
+- videotoolbox 的 scale_vt 与 transpose_vt 滤镜
+- 支持向 libx264 传递 P_SKIP 提示以加速编码
+- 增强版 FLV 与增强版 RTMP 协议支持 HEVC、VP9、AV1
+- apsnr 与 asisdr 音频滤镜
+- OSQ 解流器与解码器
+- CRI USM 解流器
+- ffmpeg CLI 的 `-top` 选项废弃，改用 setfield 滤镜
+- VAAPI AV1 编码器
+- ffprobe XML 输出模式调整以支持同一父元素下多个可变字段元素；新增 `-output_format` 作为 `-of` 的别名
+
+内部变化：编解码器与滤镜使用的 FFT、MDCT、DCT、DST 实现全部替换为更快的 libavutil/tx，编译产物随之变小；视频解码器每帧的内存分配大幅减少；合入了 RISC-V DSP 优化；改进了包时间戳与帧时长的正确性，可变帧率视频更精确。6.0 之前已排定的大量改动被拦在本版本之外。
+
+### FFmpeg 6.0 "Von Neumann"（2023-02-28）
+
+[FFmpeg 6.0 "Von Neumann"](https://ffmpeg.org/download.html#release_6.0) 改变了发行方式：此后每个大版本都会提升 ABI 版本、计划每年发布一个大版本、废弃 API 在三个版本后的下一个大版本移除。新增 Bonk、RKA、Radiance、SC-4、APAC、VQC、WavArc 及若干 ADPCM 解码器；QSV 与 NVenc 支持 AV1 编码；ffmpeg CLI 因线程化而提速。亮点还包括 Radiance HDR 图像支持、ddagrab 桌面复制捕获滤镜、cropdetect 新模式、VAAPI/QSV 的 10/12bit 4:2:2 与 4:4:4 HEVC/VP9 编解码、MediaCodec 编解码器、showcwt 与 adrc 等新滤镜。
+
+### 更早的大版本
+
+| 版本 | 代号 | 发布日期 |
+| --- | --- | --- |
+| 5.1 | Riemann | 2022-07-22 |
+| 5.0 | Lorentz | 2022-01-17 |
+| 4.4 | Rao | 2021-04-08 |
+| 4.3 | 4:3 | 2020-06-15 |
+| 4.2 | Ada | 2019-08-05 |
+| 4.1 | al-Khwarizmi | 2018-11-06 |
+| 4.0 | Wu | 2018-04-20 |
+| 3.4 | Cantor | 2017-10-15 |
+| 3.3 | Hilbert | 2017-04-13 |
+| 3.1 | Laplace | 2016-06-27 |
+| 3.0 | Einstein | 2016-02-15 |
+
+各版本的详细新闻见官网 [News](https://ffmpeg.org/index.html#news) 与 [存档](https://ffmpeg.org/archive.html)。
+
+## 项目动态
+
+- **2026-06-24，Ampere 捐赠服务器**：Ampere 向 FFmpeg 捐赠了一台 AmpereOne®（Mt. Mitchell）2U 服务器：192 个 Arm 核心、512 GB 内存、24 个 NVMe 盘位、2×25G 网络，整机重 28 kg。为表庆祝，画师 Dascha（daschasara）响应项目征集绘制了纪念插画。
+- **2024-09-11，Coverity**：FFmpeg 在 [Coverity 静态分析](https://scan.coverity.com/projects/ffmpeg)中的缺陷数降至 2016 年以来最低，缺陷密度不到百万行以上开源项目平均值的三十分之一。这要感谢 [Sovereign Tech Fund](https://www.sovereigntechfund.de/) 的资助。
+- **2024-06-02，原生 xHE-AAC 解码器**：FFmpeg 已实现原生 xHE-AAC 解码器，目前支持不含 (e)SBR、USAC 与 MPEG-H Surround 的码流（即大多数在用的 xHE-AAC 码流），其余部分即将补上。过程中发现的若干规范问题已反馈给标准作者。
+- **2024-05-13，Sovereign Tech Fund**：德国 [Sovereign Tech Fund](https://www.sovereigntechfund.de/tech/ffmpeg) 成为 FFmpeg 首个政府赞助方，资助项目维护这一支撑全球数十亿人音视频体验的关键开源组件。
+- **2024-01-03，原生 VVC 解码器**：libavcodec 合入原生 VVC（Versatile Video Coding）解码器，支持编解码器特性的大部分内容。代码由 Nuo Mi、Xu Mu、Frank Plowman、Shaun Loo 与 Wu Jianhua 编写。
+- **2023-12-18，IAMF 支持**：libavformat 可读写 [IAMF](https://aomediacodec.github.io/iamf/)（沉浸式音频）文件，ffmpeg CLI 通过新的 `-stream_group` 选项配置 IAMF 结构。由 James Almer 编写。
+- **2023-12-12，多线程 ffmpeg CLI**：经过大规模重构，转码流水线的所有主要组件（解流器、解码器、滤镜、编码器、混流器）现已并行运行，吞吐与 CPU 利用率提升、延迟下降。但若几乎所有计算都花在单一组件（典型如视频编码），不要指望明显提速。
+- **2023-05-31，Vulkan 解码**：Vulkan 硬件加速解码代码合入，这是首个厂商无关、平台无关的解码加速 API，也是首个多线程硬件解码 API，可打满硬件暴露的所有解码引擎。用法见[文档](https://trac.ffmpeg.org/wiki/HWAccelIntro#Vulkan)。
+- **2021-06-19，IRC 迁至 Libera**：FFmpeg 的 IRC 新家落户 Libera Chat，频道为 #ffmpeg 与 #ffmpeg-devel，详情见[联系方式页](https://ffmpeg.org/contact.html#IRCChannels)。

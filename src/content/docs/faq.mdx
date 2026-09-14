@@ -1,0 +1,332 @@
+---
+title: FFmpeg 常见问题
+description: 官方 FAQ 全译：通用问题、编译、使用与开发四类问答。
+group: 资源
+order: 1
+source: https://ffmpeg.org/faq.html
+---
+
+## 通用问题
+
+### 1.1 为什么 FFmpeg 不支持功能 `[xyz]`？
+
+因为还没人承担。FFmpeg 开发由各位开发者认为重要的任务驱动，某功能对你重要，最好的办法是自己实现或赞助开发者实现。
+
+### 1.2 FFmpeg 不支持编解码器 XXX，能内置 Windows DLL 加载器吗？
+
+不能。Windows DLL 不可移植、臃肿且往往很慢；FFmpeg 力求原生支持所有编解码器，DLL 加载器无助于该目标。
+
+### 1.3 这文件读不了，但格式看起来是支持的？
+
+能读该封装格式不代表支持其中所有编解码器，请查 ffmpeg 文档的受支持编解码器列表。
+
+### 1.4 Windows 支持哪些编解码器？
+
+Windows 对 MPEG 等标准格式支持不佳（除非安装额外编解码器）。多数 Windows 系统可用的视频编解码器：
+
+| 编解码器 | 说明 |
+| --- | --- |
+| `msmpeg4v2` | `.avi`/`.asf` |
+| `msmpeg4`、`wmv1`、`wmv2` | 仅 `.asf` |
+| `mpeg4` | 需装 MPEG-4 编解码器（如 ffdshow、Xvid） |
+| `mpeg1video` | 仅 `.mpg` |
+
+注意 ASF 文件在 Windows 上常为 `.wmv`/`.wma` 扩展名；微软声称对 ASF 拥有专利、并可能起诉或威胁用非微软软件创建 ASF 的用户，建议避开 ASF。多数 Windows 系统可用的音频编解码器：`adpcm_ima_wav`、`adpcm_ms`、`pcm_s16le` 总是可用，`libmp3lame` 需安装 MP3 编解码器（如 LAME）。
+
+## 编译
+
+### 2.1 error: can't find a register in class 'GENERAL_REGS' while reloading 'asm'
+
+这是 gcc 的 bug，请报告给 gcc 开发者而非我们，我们也不会为其加变通。（部分）gcc 开发者认为这不是 bug 或不该由他们修：[gcc bug 11203](https://gcc.gnu.org/bugzilla/show_bug.cgi?id=11203)。话说回来，他们中有人分不清不可判定问题与 NP 困难问题……
+
+### 2.2 已用发行版包管理器装了库，为什么 `configure` 看不到？
+
+发行版常把一个库拆成多包：主包供运行使用它的程序，开发包供编译，文档/数据有时也在单独包里。构建 FFmpeg 需装开发包（通常叫 `libfoo-dev`/`libfoo-devel`），编完可卸载，但保留主包。
+
+### 2.3 如何让 `pkg-config` 找到我的库？
+
+库所在处某 `pkgconfig` 目录里有 `.pc` 文件，用环境变量让 `pkg-config` 找到它们。追加搜索目录（如单独安装的库）：
+
+```sh
+export PKG_CONFIG_PATH=/opt/x264/lib/pkgconfig:/opt/opus/lib/pkgconfig
+```
+
+替换搜索列表（如交叉编译）：
+
+```sh
+export PKG_CONFIG_LIBDIR=/home/me/cross/usr/lib/pkgconfig:/home/me/cross/usr/local/lib/pkgconfig
+```
+
+静态链接需要了解库的内部依赖时，加 `--static` 选项：
+
+```sh
+./configure --pkg-config-flags=--static
+```
+
+### 2.4 交叉编译时如何使用 `pkg-config`？
+
+最好把 `pkg-config` 装进交叉编译环境，它会自动用交叉编译的库。也可从宿主环境调用：给 `configure` 显式传 `--pkg-config=pkg-config`，并按上一条用 `PKG_CONFIG_LIBDIR` 指向正确目录。折中办法是在交叉环境放一个设好 `PKG_CONFIG_LIBDIR`、再调宿主 `pkg-config` 的脚本：
+
+```sh
+#!/bin/sh
+PKG_CONFIG_LIBDIR=/path/to/cross/lib/pkgconfig
+export PKG_CONFIG_LIBDIR
+exec /usr/bin/pkg-config "$@"
+```
+
+## 使用
+
+### 3.1 ffmpeg 跑不起来，问题在哪？
+
+构建前先在源码目录执行一次 `make distclean`，仍无效见 [bugreports](https://ffmpeg.org/bugreports.html)。
+
+### 3.2 如何把单张图片编码成影片？
+
+先把图片重命名为数字序列，然后：
+
+```sh
+ffmpeg -f image2 -i img%d.jpg /tmp/a.mpg
+```
+
+`%d` 替换为图片编号，`img%03d.jpg` 即 `img001.jpg`、`img002.jpg` 序列。不从 `img001.jpg` 开头但仍是数字顺序时，用 `-start_number` 声明起始编号：
+
+```sh
+ffmpeg -f image2 -start_number 100 -i img%d.jpg /tmp/a.mpg
+```
+
+图片很多时可用这条 bourne shell 命令，把当前目录所有 `*jpg` 按 `img001.jpg` 顺序链接到 `/tmp`：
+
+```sh
+x=1; for i in *jpg; do counter=$(printf %03d $x); ln -s "$i" /tmp/img"$counter".jpg; x=$(($x+1)); done
+```
+
+按最后修改时间从旧到新排序时，把 `*jpg` 换成 `$(ls -r -t *jpg)`，然后运行：
+
+```sh
+ffmpeg -f image2 -i /tmp/img%03d.jpg /tmp/a.mpg
+```
+
+任何 ffmpeg 可读的图片格式同理；也可用 `cat` 喂图：
+
+```sh
+cat *.jpg | ffmpeg -f image2pipe -c:v mjpeg -i - output.mpg
+```
+
+### 3.3 如何把影片编码成单张图片？
+
+```sh
+ffmpeg -i movie.mpg movie%d.jpg
+```
+
+输入会转成 `movie1.jpg`、`movie2.jpg` 等。也可用 `-c:v ppm`、`-c:v png`、`-c:v mjpeg` 强制编码：
+
+```sh
+ffmpeg -i movie.mpg -f image2 -c:v mjpeg menu%d.jpg
+```
+
+不存在 "jpeg" 编解码器，请用 "mjpeg"。
+
+### 3.4 为什么多线程 MPEG* 编码质量略降？
+
+多线程 MPEG* 编码要求各切片独立，否则线程 n 实际要等 n-1 完成，质量略降合乎逻辑，不是 bug。
+
+### 3.5 如何从标准输入读或写到标准输出？
+
+文件名写 `-`。
+
+### 3.6 `-f jpeg` 不起作用？
+
+试 `-f image2 test%d.jpg`。
+
+### 3.7 为什么不能改帧率？
+
+某些编解码器（如 MPEG-1/2）只允许少数固定帧率，用 `-c:v` 换一个。
+
+### 3.8 如何编码 Xvid 或 DivX？
+
+Xvid 与 DivX（4+）都是 ISO MPEG-4 标准的实现，用 `-c:v mpeg4` 即可。默认 fourcc 是 `FMP4`，改 fourcc 用 `-vtag`，如 `-vtag xvid` 强制存 `xvid`。
+
+### 3.9 高质量 MPEG-4 参数？
+
+`-mbd rd -flags +mv4+aic -trellis 2 -cmp 2 -subcmp 2 -g 300 -pass 1/2`；可试 `-bf 2`、`-mpv_flags qp_rd`、`-mpv_flags mv0`、`-mpv_flags skip_rd`。
+
+### 3.10 高质量 MPEG-1/MPEG-2 参数？
+
+`-mbd rd -trellis 2 -cmp 2 -subcmp 2 -g 100 -pass 1/2`，注意 `-g 100` 可能与某些解码器不兼容。可试 `-bf 2`、`-mpv_flags qp_rd`、`-mpv_flags mv0`、`-mpv_flags skip_rd`。
+
+### 3.11 隔行视频编码后很差？
+
+隔行素材用 `-flags +ilme+ildct`，可再加 `-flags +alt`；结果仍糟就试 `-top 0/1`。
+
+### 3.12 如何读取 DirectShow 文件？
+
+若为 Windows 构建时启用 `./configure --enable-avisynth` 且 AviSynth+ 提供 DirectShowSource，任何 DirectShow 可读文件都可作输入。建一个仅一行的 "input.avs"：
+
+```text
+DirectShowSource("C:\path to your file\yourfile.asf")
+```
+
+再喂给 ffmpeg：`ffmpeg -i input.avs`。其他 AviSynth 问题见[主页](http://www.avisynth.org/)。
+
+### 3.13 如何拼接（join）视频文件？
+
+"拼接"含义含糊，对应操作分别是：
+
+- 首尾排在一起：即串联（concat），见 [3.14](#314-如何串联视频文件)。
+- 多版本放同一文件供选择（如不同语言音轨）：即混流（mux），给 ffmpeg 传多个 `-i` 即可。
+- 音频多声道并为一条流（两条 mono 合成 stereo）：合并（merge），用 [amerge](https://ffmpeg.org/ffmpeg-filters.html#amerge) 滤镜。
+- 音频两路叠加播放：即混音（mix），先合并再用 [pan](https://ffmpeg.org/ffmpeg-filters.html#pan) 混合声道。
+- 视频两路同屏（并排或叠一部分）：用 [overlay](https://ffmpeg.org/ffmpeg-filters.html#overlay) 滤镜。
+
+### 3.14 如何串联视频文件？
+
+视情形有几种方案。
+
+#### 3.14.1 concat 滤镜
+
+专为重编码场景设计：[concat](https://ffmpeg.org/ffmpeg-filters.html#concat) 滤镜，文档附示例。
+
+#### 3.14.2 concat 解流器
+
+想避免重编码、而格式又不支持文件级串联时，用 [concat](https://ffmpeg.org/ffmpeg-formats.html#concat) 解流器。
+
+#### 3.14.3 concat 协议（文件级）
+
+少数容器（MPEG-1、MPEG-2 PS、DV）允许直接首尾相接文件：先转成这类格式，`cat`（Windows 用 `copy`）合并，再转回目标格式：
+
+```sh
+ffmpeg -i input1.avi -qscale:v 1 intermediate1.mpg
+ffmpeg -i input2.avi -qscale:v 1 intermediate2.mpg
+cat intermediate1.mpg intermediate2.mpg > intermediate_all.mpg
+ffmpeg -i intermediate_all.mpg -qscale:v 2 output.avi
+```
+
+也可用 [concat 协议](https://ffmpeg.org/ffmpeg-protocols.html#concat)代替 `cat`，避免生成巨大中间文件（`|` 为 shell 特殊字符，可能需转义）：
+
+```sh
+ffmpeg -i input1.avi -qscale:v 1 intermediate1.mpg
+ffmpeg -i input2.avi -qscale:v 1 intermediate2.mpg
+ffmpeg -i concat:"intermediate1.mpg|intermediate2.mpg" -c copy intermediate_all.mpg
+ffmpeg -i intermediate_all.mpg -qscale:v 2 output.avi
+```
+
+#### 3.14.4 使用裸音频与裸视频
+
+yuv4mpegpipe 格式及裸视频、裸音频编解码器同样允许串联，转码几乎无损。多个 yuv4mpegpipe 相接时除第一个流外都要丢弃首行，可经 `tail` 处理（用命令组 `{ ;}` 才能正确放后台）。串联两个 FLV 的完整脚本见[官方原文](https://ffmpeg.org/faq.html#Concatenating-using-raw-audio-and-video)。
+
+### 3.15 用 `-f lavfi` 时音频莫名变单声道？
+
+用 `-dumpgraph -` 定位声道布局的丢失点，多半在自动插入的 `aresample`，弄清该处为何需要转换；输出前也常见（`-f lavfi` 目前只支持 packed S16）。然后在滤镜图显式插入正确的 `aformat`：
+
+```text
+aformat=sample_fmts=s16:channel_layouts=stereo
+```
+
+### 3.16 为什么看不到 VOB 文件里的字幕？
+
+VOB 等格式没有描述全部内容的总体头，需扫描文件才知道内容；VOB 通常很大，初始扫描只覆盖开头，靠后的字幕探测不到，而 `ffmpeg` 只处理初始扫描发现的流。扫描范围由 `probesize`（默认约 5 MB）与 `analyzeduration`（默认 5,000,000 µs 即 5 秒）控制，两者都调大才能发现字幕流。
+
+### 3.17 `-sameq` 为什么被移除？用什么替代？
+
+`-sameq` 意为 "same quantizer"（相同量化器），只在极有限场景有意义，却被很多人误当 "same quality" 滥用：效果看似符合预期，实现却极其低效。请用编码器的质量/体积平衡选项，最常用的是 `-qscale` 与 `-qmax`。
+
+### 3.18 视频被拉伸，为什么缩放修不好？
+
+许多编解码器与格式存有宽高比：整幅画面的 DAR（显示宽高比）或像素的 SAR（采样宽高比），如 640×350 的 EGA 屏幕 DAR 4:3、SAR 35:48。静态图像多用方形像素（1:1 SAR），不少视频标准（尤其模拟转数字时代）用非方形像素。FFmpeg 多数滤镜会照顾宽高比避免拉伸：crop 调 DAR 保 SAR，scale 调 SAR 保 DAR。想拉伸或反拉伸，用 [setdar/setsar](https://ffmpeg.org/ffmpeg-filters.html#setdar_002c-setsar) 覆盖信息，并先检查拉伸来自图像本身还是宽高比信息。修复编码错误的 EGA 录制（第一条放大为方形像素，第二条设正确宽高比，第三条避免转码，视格式/编解码器/播放器乃至月相可能无效）：
+
+```sh
+ffmpeg -i ega_screen.nut -vf scale=640:480,setsar=1 ega_screen_scaled.nut
+ffmpeg -i ega_screen.nut -vf setdar=4/3 ega_screen_anamorphic.nut
+ffmpeg -i ega_screen.nut -aspect 4/3 -c copy ega_screen_overridden.nut
+```
+
+### 3.19 如何让 ffmpeg 在后台运行？
+
+ffmpeg 运行时会检查控制台输入（"q" 退出、"?" 求助），又无法感知自己在后台，导致进程挂起。用 [`-nostdin`](https://ffmpeg.org/ffmpeg.html#stdin-option) 关闭检查（shell/API 均有效），或把标准输入重定向到 `/dev/null`（Linux/macOS）/ `NUL`（Windows）：
+
+```sh
+ffmpeg -nostdin -i INPUT OUTPUT
+ffmpeg -i INPUT OUTPUT </dev/null
+ffmpeg -i INPUT OUTPUT <NUL
+```
+
+### 3.20 如何避免 suspended (tty output) 挂起？
+
+后台运行可能出现：
+
+```text
+% ffmpeg -i INPUT OUTPUT &> ~/tmp/log.txt &
+[1] 93352
+%
+[1]  + suspended (tty output)  ffmpeg -i INPUT OUTPUT &>
+```
+
+尽管提示是 "tty output"，根因仍是 ffmpeg 检查控制台输入：OS 检测到后台进程读终端就挂起它。办法同 3.19：`-nostdin` 或 `< /dev/null`。
+
+## 开发
+
+### 4.1 有使用 FFmpeg 库的示例吗？
+
+有，源码仓库 `doc/examples`（[在线](https://github.com/FFmpeg/FFmpeg/tree/master/doc/examples)）；默认也装到 `$PREFIX/share/ffmpeg/examples`。也可读文档的开发者指南，或研究 [projects 页](https://ffmpeg.org/projects.html) 上已集成 FFmpeg 的开源项目。
+
+### 4.2 能支持我的 C 编译器 XXX 吗？
+
+看情况。若编译器符合 C11，补丁不把编译器相关 `#ifdef` 污染进源码就通常受欢迎。
+
+### 4.3 支持 Microsoft Visual C++ 吗？
+
+支持，见[文档的 Microsoft Visual C++ 一节](https://ffmpeg.org/platform.html)。
+
+### 4.4 能加 automake、libtool 或 autoconf 支持吗？
+
+不能，太臃肿且让构建复杂化。
+
+### 4.5 为什么不重写为面向对象 C++？
+
+FFmpeg 本就高度模块化，无需重写为对象语言；许多开发者偏爱纯 C 且行之有效，更多论点见 ["Programming Religion"](https://web.archive.org/web/20111004021423/http://kernel.org/pub/linux/docs/lkml/#s15)。
+
+### 4.6 为什么 ffmpeg 程序没有调试符号？
+
+构建先生成带完整调试信息的 `ffmpeg_g`、`ffplay_g`，strip 后才得到 `ffmpeg`、`ffplay`，需要调试信息就用 `*_g` 版本。
+
+### 4.7 不喜欢 LGPL，能以 GPL 贡献代码吗？
+
+可以，只要代码可选、能干净地放进 `#if CONFIG_GPL` 且不破坏任何东西：新编解码器/滤镜用 GPL 可以，LGPL 代码的 bug 修复不行。
+
+### 4.8 C 程序链接 FFmpeg 时报库自身符号缺失？
+
+FFmpeg 默认构建静态库，静态库不管依赖：一是库要按依赖顺序给（`-lavdevice` 在 `-lavformat` 前、`-lavutil` 最后等）；二是 FFmpeg 用到的外部库也要列出。简便办法是用 `pkg-config` 拿排序后的完整列表：
+
+```sh
+c99 -o program program.c $(pkg-config --cflags --libs libavformat libavcodec)
+```
+
+详见 `doc/example/Makefile` 与 `doc/example/pc-uninstalled`。
+
+### 4.9 C++ 程序报明明存在的符号找不到？
+
+FFmpeg 是纯 C 项目，C++ 中使用其库必须显式声明在用 C 库：把包含项放进 `extern "C"`。参见 [C++ FAQ 32.3](http://www.parashift.com/c++-faq-lite/mixing-c-and-cpp.html#faq-32.3)。
+
+### 4.10 文件在内存里 / API 不同于 *open/*read/ libc，如何配合 libavformat？
+
+用 `avio_alloc_context` 创建自定义 `AVIOContext`，参考 FFmpeg 的 `libavformat/aviobuf.c` 与 MPlayer/MPlayer2 的 `libmpdemux/demux_lavf.c`。
+
+### 4.11 ffv1、msmpeg4、asv1、4xm 的文档在哪？
+
+见 [https://www.ffmpeg.org/~michael/](https://www.ffmpeg.org/~michael/)。
+
+### 4.12 如何把 H.263-RTP（及其他 RTP 中的编解码器）喂给 libavcodec？
+
+RTP 虽面向网络，也和其他容器一样是容器：先解流，再把有效载荷交给 libavcodec，做法见 RFC 4629。
+
+### 4.13 AVStream.r_frame_rate 比实际帧率大很多，是错的吗？
+
+`r_frame_rate` 不是平均帧率，而是能精确表示所有时间戳的最小帧率，比平均值大不是错误：25 与 30 fps 混合内容时它是 150（最小公倍数），平均帧率见 `AVStream.avg_frame_rate`。
+
+### 4.14 为什么 `make fate` 没跑所有测试？
+
+确认已备好 fate-suite 样本，且 `SAMPLES` Make 变量、`FATE_SAMPLES` 环境变量或 `configure --samples` 指向正确路径。
+
+### 4.15 为什么 `make fate` 找不到样本？
+
+样本路径里用了 `~`？它在 shell 无法展开的场合会让 FATE 找不到文件，换成完整路径即可。

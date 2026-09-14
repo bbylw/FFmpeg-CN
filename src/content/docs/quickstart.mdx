@@ -1,0 +1,154 @@
+---
+title: 快速上手
+description: 常用 FFmpeg 命令行示例速查：转码、截取、缩放、压制、拼接、GIF 与推流。
+group: 开始
+order: 3
+source: https://ffmpeg.org/ffmpeg.html
+---
+
+本页示例全部取自 FFmpeg 官方页面（ffmpeg、filters 手册与官网首页），每条命令都保持官方原文，示例后的解释为中文说明。完整选项表请见 [ffmpeg 官方手册](https://ffmpeg.org/ffmpeg.html)，先按 [下载页面](/docs/download/) 装好 ffmpeg 再往下读。
+
+## 命令基本结构
+
+ffmpeg 是一个通用媒体转换器：它可以读取任意数量的输入（普通文件、管道、网络流、采集设备等），每个输入用 `-i` 指定；输出则是命令行里任何无法解释为选项的裸 URL。规则如下（来自官方 Description 一节）：
+
+* 输入输出中的文件与流都按 0 起的索引引用，例如 `2:3` 指第三个输入或输出的第四个流。
+* 一般来说，选项作用于其后紧跟的那个文件，因此顺序很重要；请先写完所有输入，再写输出，不要把输入和输出混在一起。
+* 全局选项（例如日志级别）应当最先给出。
+
+## 格式转换
+
+把输入媒体文件转码为另一种格式（重新编码音视频流）。转码时 ffmpeg 会自动挑选合理的默认编码器与参数：
+
+```bash
+ffmpeg -i input.avi output.mp4
+```
+
+官网首页给出的同款示例，把 MP4 转成 AVI：
+
+```bash
+$ ffmpeg -i input.mp4 output.avi
+```
+
+## 不重编码，只换封装（流复制）
+
+输入格式与输出容器兼容时，用 `-c copy` 直接复制流，不重新编码，速度快且无损。`-map 0:1` 表示选取第一个输入的第二个流：
+
+```bash
+ffmpeg -i INPUT.mkv -map 0:1 -c copy OUTPUT.mp4
+```
+
+也可以把一个 MKV 的视频和一条外部 AAC 音轨混在一起：
+
+```bash
+ffmpeg -i INPUT0.mkv -i INPUT1.aac -map 0:0 -map 1:0 -c copy OUTPUT.mp4
+```
+
+## 抽取音频或指定流
+
+一个输入文件里有两条音频流时，它们分别记为 `0:0` 和 `0:1`。下面的命令把输入的第二个流映射为 out.wav 中唯一的输出流，即"抽取第二条音轨"：
+
+```bash
+ffmpeg -i INPUT -map 0:1 out.wav
+```
+
+映射全部流、或按语言挑选，也是 `-map` 的常见用法（详见官方手册 Stream selection 一节）。
+
+## 截取片段
+
+官方的按时间截取示例来自 `trim`（视频）与 `atrim`（音频）滤镜。下面两条分别表示"只保留输入的第二分钟"和"只保留第一秒"：
+
+```bash
+ffmpeg -i INPUT -vf trim=60:120
+ffmpeg -i INPUT -vf trim=duration=1
+```
+
+更常用的做法是直接给 ffmpeg 传时间位置选项：`-ss position` 放在 `-i` 之前表示在输入文件中定位到该时间（seek），放在输出 URL 之前则表示解码并丢弃直到时间戳到达该位置；`-to position` 在该时间点停止读取输入或写出输出。`position` 都是 ffmpeg-utils 的时间时长格式（如 `55`、`200ms`、`12:03:45`，见 [通用语法](/docs/syntax/)）。
+
+## 改分辨率与帧率
+
+用 `scale` 滤镜把视频缩放到 640x360：
+
+```bash
+ffmpeg -i infile -vf scale=640:360 outfile
+```
+
+强制输出文件帧率为 24 fps：
+
+```bash
+ffmpeg -i input.avi -r 24 output.mp4
+```
+
+把原始格式的输入按 1 fps 读入、输出为 24 fps（`-r` 放在 `-i` 之前只对流格式输入有效，可能需要 `-f` 显式指定输入格式）：
+
+```bash
+ffmpeg -r 1 -i input.m2v -r 24 output.mp4
+```
+
+## 压制体积（控制码率）
+
+把输出的视频码率设为 64 kbit/s：
+
+```bash
+ffmpeg -i input.avi -b:v 64k -bufsize 64k output.mp4
+```
+
+强制 CBR（恒定码率）输出的官方示例：
+
+```bash
+ffmpeg -i myfile.avi -b 4000k -minrate 4000k -maxrate 4000k -bufsize 1835k out.m2v
+```
+
+码率数值支持 `k` 等 SI 前后缀写法，参见 [通用语法](/docs/syntax/) 的表达式求值一节。
+
+## 拼接多个文件
+
+官方 FAQ 与 filters 手册给出三种拼接途径：`concat` 滤镜、`concat` 解流器（demuxer，可免去重编码）、`concat` 协议（文件级）。`concat` 滤镜的官方示例，把片头、正片、片尾拼成一个双语版本（视频在流 0，两条音频在流 1、2）：
+
+```bash
+ffmpeg -i opening.mkv -i episode.mkv -i ending.mkv -filter_complex \
+  '[0:0] [0:1] [0:2] [1:0] [1:1] [1:2] [2:0] [2:1] [2:2]
+   concat=n=3:v=1:a=2 [v] [a1] [a2]' \
+  -map '[v]' -map '[a1]' -map '[a2]' output.mkv
+```
+
+文件级拼接的官方 FAQ 示例（先转成允许直接拼接的中间 MPEG 文件）：
+
+```bash
+ffmpeg -i concat:"intermediate1.mpg|intermediate2.mpg" -c copy intermediate_all.mpg
+```
+
+使用 `concat` 滤镜时所有片段必须从时间戳 0 开始，且除帧率外的各项参数（如分辨率）需要用户显式统一到一致。
+
+## 生成 GIF
+
+官方推荐两步法（`palettegen` / `paletteuse` 滤镜）：先从视频生成调色板图片，再用该调色板输出 GIF：
+
+```bash
+ffmpeg -i input.mkv -vf palettegen palette.png
+```
+
+```bash
+ffmpeg -i input.mkv -i palette.png -lavfi paletteuse output.gif
+```
+
+## 推流基础
+
+官方新闻页给出的简易 HTTP 流示例：以 `-listen 1` 让 ffmpeg 作为 HTTP 服务端输出 Matroska 流，用 x264 低延迟预设编码采集设备 `/dev/video0`：
+
+```bash
+ffmpeg -i /dev/video0 -listen 1 -f matroska \
+-c:v libx264 -preset fast -tune zerolatency http://:8080
+```
+
+播放端直接用 ffplay 拉流：
+
+```bash
+ffplay http://localhost:8080/
+```
+
+## 下一步
+
+* 看懂命令里的各种写法：[通用语法（选项、时间、颜色、表达式）](/docs/syntax/)
+* 完整选项与更多示例：[ffmpeg 官方手册](https://ffmpeg.org/ffmpeg.html)、[滤镜官方手册](https://ffmpeg.org/ffmpeg-filters.html)
+* 进阶技巧与常见错误：[FFmpeg Wiki](https://trac.ffmpeg.org)

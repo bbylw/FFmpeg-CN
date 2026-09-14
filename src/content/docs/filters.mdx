@@ -1,0 +1,324 @@
+---
+title: 滤镜
+description: FFmpeg 滤镜图语法、转义规则与音视频滤镜全清单中文手册
+group: 组件手册
+order: 3
+source: https://ffmpeg.org/ffmpeg-filters.html
+---
+
+## 说明
+
+滤镜处理由 libavfilter 完成；`ffmpeg -filters` 列出全部可用滤镜。本页翻译官方滤镜图语法与转义章节，收录 Audio/Video Filters 全清单与常用滤镜详解；各滤镜选项全表见官方：[https://ffmpeg.org/ffmpeg-filters.html](https://ffmpeg.org/ffmpeg-filters.html)。
+
+## 滤镜处理简介
+
+libavfilter 中一个滤镜可有多个输入输出。官方经典滤镜图：split 一分为二，一路 crop 裁去下半部再 vflip 翻转，overlay 叠回另一路下半，上半画面镜像到输出下半：
+
+```sh
+ffmpeg -i INPUT -vf "split [main][tmp]; [tmp] crop=iw:ih/2:0:0, vflip [flip]; [main][flip] overlay=0:H/2" OUTPUT
+```
+
+同链内逗号分隔、链间分号，汇合点用方括号标签（`[main]`、`[tmp]`）。参数写在名字与 `=` 后、冒号分隔。源无输入、汇无输出。graph2dot 可把滤镜图转成 dot 文本供 graphviz 渲染。
+
+## 滤镜图描述
+
+滤镜图是相连滤镜构成的有向图，可含环，一对滤镜间可多条连接；每条连接一端为一个输入 pad、另一端为一个输出 pad。每个滤镜是已注册滤镜类的实例，类决定特性与 pad 数。无输入 pad 称源，无输出 pad 称汇。
+
+### 滤镜图语法
+
+滤镜图文本表示被 ffmpeg 的 `-filter`/`-vf`/`-af`、`-filter_complex`，ffplay 的 `-vf`/`-af` 及 `avfilter_graph_parse_ptr()` 识别。
+
+- 滤镜链：一串相连滤镜，逗号分隔。滤镜图：滤镜链序列，分号分隔。
+- 单个滤镜形如 `[in_1]...[in_N]filter_name@id=arguments[out_1]...[out_M]`。`filter_name` 为类名（可选 `@id`），`arguments` 为参数串。
+- `arguments` 形式：冒号分隔的 `key=value`；冒号分隔纯值（按键声明顺序对应，如 fade 声明序 `type`、`start_frame`、`nb_frames`，则 `in:0:30` 依次赋值）；纯值在前、`key=value` 在后的混合（后者可任意顺序）。列表型选项元素通常以 `|` 分隔。
+- 参数串可用 `'` 引用并以 `\` 转义，否则遇特殊字符集合 `[]=;,` 即终止。ffmpeg CLI 中选项名前加 `/` 则值按文件路径加载：`-vf drawtext=/text=/tmp/some_text`；API 用 `avfilter_graph_segment_*()` 可实现同类功能。
+- 同名标签的两个 pad 自动相连；未标记输出默认连到链中下一滤镜首个未标记输入（`nullsrc, split[L1], [L2]overlay, nullsink` 中 split 第二输出连 overlay 第二输入）。首滤镜缺输入标签视为 `in`，末滤镜缺输出标签视为 `out`。完整链未标记 pad 必须全连通，全链连通滤镜图才有效。首尾空白忽略，可换行缩进。需要时 libavfilter 自动插入 scale；图前加 `sws_flags=flags;` 可为其指定缩放标志。
+
+BNF：
+
+```text
+NAME         ::= 一串字母数字与下划线
+FILTER_NAME  ::= NAME ["@" NAME]
+LINKLABEL    ::= "[" NAME "]"
+LINKLABELS   ::= LINKLABEL [LINKLABELS]
+FILTER_ARGUMENTS ::= 一串字符（可带引号）
+FILTER       ::= [LINKLABELS] FILTER_NAME ["=" FILTER_ARGUMENTS] [LINKLABELS]
+FILTERCHAIN  ::= FILTER ["," FILTERCHAIN]
+FILTERGRAPH  ::= [sws_flags=flags;] FILTERCHAIN [";" FILTERGRAPH]
+```
+
+### 滤镜图转义
+
+滤镜图组装涉及多层转义（通用规则见 [ffmpeg-utils](https://ffmpeg.org/ffmpeg-utils.html) 的 Quoting and escaping）：第一层作用于选项值（可含 `:` 与 `'`）；第二层作用于整个滤镜描述（`'` 与 `[]`、`,`、`;`）；第三层是 shell 特殊字符。官方例：字符串
+
+```text
+this is a 'string': may contain one, or more, special characters
+```
+
+放入 drawtext 的 `text` 值为 `text=this is a \'string\'\: may contain one, or more, special characters`；嵌入滤镜图再转一层（逗号也需转义）： `drawtext=text=this is a \\\'string\\\'\: may contain one\, or more\, special characters`；写进 shell 再加一层（假定 `\` 需再转义）： `-vf "drawtext=text=this is a \\\\\\'string\\\\\\'\\\\: may contain one\\, or more\\, special characters"`。避免转义地狱：用 `/` 文件加载或 drawtext 的 `textfile` 选项。
+
+## 时间线编辑、运行时命令与 framesync
+
+支持时间线编辑的滤镜有通用 `enable` 选项：每帧求值，非零启用、否则原样传递；变量 `t`（秒）、`n`（帧号）、`pos`（已弃用）、`w`/`h`，可运行时重设。例（smartblur 于 10 秒至 3 分钟、curves 自 3 秒起）：
+
+```text
+smartblur = enable='between(t,10,3*60)', curves = enable='gte(t,3)' : preset=cross_process
+```
+
+`ffmpeg -filters` 查时间线支持；`-h filter=名称` 标 `T` 的选项运行时按名改值。多输入滤镜公共选项（framesync，仅可按名设置）：`eof_action`（repeat 默认/endall/pass）、`shortest`（默认 0）、`repeatlast`（默认 1）、`ts_sync_mode`（default/nearest）。
+
+## 音频滤镜全表
+
+官方 Audio Filters 章 122 条（仅常用条目附用途）：
+
+|名称|用途|名称|用途|
+|---|---|---|---|
+|aap||acopy||
+|acompressor||acontrast||
+|acrossfade||acrossover||
+|acrusher||acue||
+|adeclick||adeclip||
+|adecorrelate||adelay||
+|adenorm||aderivative, aintegral|differential/integral|
+|adrc||adynamicequalizer||
+|adynamicsmooth||aecho|回声|
+|aemphasis||aeval|表达式|
+|aexciter||afade|淡变|
+|afftdn|FFT降噪|afftfilt||
+|afir||aformat|格式协商|
+|afreqshift||afwtdn||
+|agate|噪声门|aiir||
+|alimiter||allpass||
+|aloop||amerge|并声道|
+|amix|混音|amultiply||
+|anequalizer||anlmdn||
+|anlmf, anlms||anull||
+|apad|补静音|aphaser||
+|apaseshift||apsnr||
+|apsyclip||apulsator||
+|aresample|重采样|areverse|倒放|
+|arls||arnndn|RNN降噪|
+|asdr||asetnsamples||
+|asetrate||ashowinfo||
+|asisdr||asoftclip||
+|aspectralstats|频谱统计|asr||
+|astats|统计|asubboost||
+|asubcut||asupercut||
+|asuperpass||asuperstop||
+|atempo|变速|atilt||
+|atrim|截取|axcorrelate||
+|bandpass|带通|bandreject|带阻|
+|bass, lowshelf||biquad||
+|bs2b||channelmap||
+|channelsplit||chorus|合唱|
+|compand||compensationdelay||
+|crossfeed||crystalizer||
+|dcshift||deesser|去齿音|
+|dialoguenhance||drmeter||
+|dynaudnorm|动态归一|earwax||
+|equalizer|均衡|extrastereo||
+|firequalizer|FFT校正|flanger|镶边|
+|haas||hdcd||
+|headphone||highpass|高通|
+|join||ladspa||
+|loudnorm|响度|lowpass|低通|
+|lv2||mcompand||
+|pan|任意下混|replaygain|重放增益|
+|resample||rubberband|弹性变速|
+|sidechaincompress||sidechaingate||
+|silencedetect|检静音|silenceremove|删静音|
+|sofalizer||speechnorm||
+|stereotools||stereowiden||
+|superequalizer||surround||
+|tiltshelf||treble, highshelf||
+|tremolo|颤音|vibrato||
+|virtualbass||volume|音量|
+|volumedetect||whisper||
+## 视频滤镜全表
+
+官方 Video Filters 章 296 条；`_cuda`/`_opencl`/`_vaapi`/`_vulkan`/`_d3d12`/`_amf` 后缀为加速变体；长尾条目从略用途：
+
+|名称|用途|名称|用途|
+|---|---|---|---|
+|addroi||alphaextract|取alpha|
+|alphamerge|合alpha|amplify||
+|ass|烧字幕|atadenoise||
+|avgblur|模糊|backgroundkey||
+|bbox||bilateral||
+|bitplanenoise||blackdetect|黑场|
+|blackdetect_vulkan||blackframe|黑帧|
+|blend|混合|blockdetect||
+|blurdetect||bm3d|降噪|
+|boxblur|模糊|bwdif|去交错|
+|ccrepack||cas||
+|chromahold||chromakey|色键|
+|chromanr||chromashift||
+|ciescope||codecview||
+|colorbalance|平衡|colorcontrast||
+|colorcorrect||colorchannelmixer||
+|colordetect||colorize||
+|colorkey|键控|colorhold||
+|colorlevels||colormap||
+|colormatrix||colorspace|空间转换|
+|colortemperature|色温|convolution||
+|convolve||copy||
+|coreimage|CoreImage桥|corr||
+|cover_rect||crop|裁剪|
+|cropdetect|黑边检测|cue||
+|curves|曲线|datascope||
+|dblur||dctdnoiz||
+|deband||deblock||
+|decimate||deconvolve||
+|dedot||deflate||
+|deflicker||dejudder||
+|delogo|去台标|derain||
+|deshake|防抖|despill||
+|detelecine||dilation||
+|displace||dnn_classify||
+|dnn_detect||dnn_processing||
+|drawbox|画框|drawgraph||
+|drawgrid|画网格|drawtext|文字|
+|drawvg||edgedetect||
+|elbg||entropy||
+|epx||eq|亮度对比|
+|erosion||estdif||
+|exposure||extractplanes||
+|fade|淡变|feedback||
+|fftdnoiz||fftfilt||
+|field||fieldhint||
+|fieldmatch||fieldorder||
+|fillborders||find_rect||
+|floodfill||format|格式协商|
+|fps|帧率|framepack||
+|framerate||frc_amf||
+|vqe_amf||framestep||
+|freezedetect||freezeframes||
+|frei0r||fspp||
+|fsync||gblur|模糊|
+|geq||gradfun||
+|graphmonitor||grayworld||
+|greyedge||guided||
+|haldclut||hflip|翻转|
+|histeq|均衡|histogram|直方图|
+|hqdn3d|降噪|hwdownload|显存下载|
+|hwmap|映射|hwupload|上传显存|
+|hwupload_cuda||hqx||
+|hstack|横拼|hsvhold||
+|hsvkey||hue|色相饱和|
+|huesaturation||hysteresis||
+|iccdetect||iccgen||
+|identity||idet|交错检测|
+|il||inflate||
+|interlace|交错|interlace_vulkan||
+|kerndeint||kirsch||
+|lagfun||latticepal||
+|lenscorrection||lensfun||
+|lcevc||libplacebo||
+|libvmaf||libvmaf_cuda||
+|limitdiff||limiter||
+|loop||lut1d||
+|lut3d||lumakey||
+|lut||lutrgb|RGB LUT|
+|lutyuv|YUV LUT|lut2, tlut2||
+|maskedclamp||maskedmax||
+|maskedmerge||maskedmin||
+|maskedthreshold||maskfun||
+|mcdeint|去交错|median||
+|mergeplanes|合平面|mestimate||
+|mestimate_d3d12||midequalizer||
+|minterpolate||mix||
+|monochrome||morpho||
+|mpdecimate||msad||
+|multiply||negate|反色|
+|nlmeans|降噪|nnedi||
+|noformat||noise||
+|normalize||null||
+|ocio||ocr||
+|ocv||oscilloscope||
+|overlay|叠加|owdenoise||
+|pad|加边|palettegen|生成调色板|
+|paletteuse|应用调色板|perspective||
+|phase||photosensitivity||
+|pixdesctest||pixelize|马赛克|
+|pixscope||pp7||
+|premultiply||premultiply_dynamic||
+|prewitt||pseudocolor||
+|psnr||pullup||
+|qp||qrencode||
+|quirc||random||
+|readeia608||readvitc||
+|remap||removegrain||
+|removelogo|去台标|repeatfields||
+|reverse||rgbashift||
+|roberts||rotate|旋转|
+|sab||scale|缩放|
+|scharr||scroll||
+|scdet||selectivecolor||
+|separatefields||setdar|显示比|
+|setsar|像素比|setfield||
+|setparams||shear||
+|showinfo|打印帧|showpalette|看调色板|
+|shuffleframes||shufflepixels||
+|shuffleplanes||signalstats||
+|signature||siti||
+|smartblur||sobel||
+|spp||sr||
+|sr_amf||ssim||
+|stereo3d||streamselect||
+|astreamselect||subtitles|烧字幕|
+|super2xsai||swaprect||
+|swapuv||tblend||
+|telecine||thistogram||
+|threshold||thumbnail||
+|tile|拼贴|tiltandshift||
+|tinterlace||tmedian||
+|tmidequalizer||tmix||
+|tonemap||tpad||
+|transpose|转置|trim|截取|
+|unpremultiply||unsharp|锐化|
+|untile||uspp||
+|v360|全景|vaguedenoiser||
+|varblur||vectorscope|矢量示波|
+|vidstabdetect|防抖分析|vidstabtransform|防抖变换|
+|vflip|翻转|vfrdet||
+|vibrance||vif||
+|vignette||vmafmotion||
+|vpp_amf||vstack|纵拼|
+|w3fdif|去交错|waveform|波形|
+|weave||doubleweave||
+|xbr||xcorrelate||
+|xfade|转场|xmedian||
+|xpsnr||xstack||
+|yadif|去交错|yaepblur||
+|zoompan|变焦|zscale||
+硬件加速章节均为基名加后端后缀：`_cuda`：bilateral, bwdif, chromakey, colorspace, overlay, pad, scale, thumbnail, transpose, yadif；`_opencl`：avgblur, boxblur, colorkey, convolution, erosion, deshake, dilation, nlmeans, overlay, pad, prewitt, program, remap, roberts, sobel, tonemap, unsharp, xfade；`_vaapi`：overlay, tonemap, hstack, vstack, xstack, pad, drawbox；`_vt`：scale, transpose；`_vulkan`：avgblur, blend, bwdif, chromaber, color, vflip, hflip, flip, fruc, gblur, nlmeans, overlay, transpose；`_qsv`：hstack, vstack, xstack。视频源：buffer,cellauto,coreimagesrc,ddagrab,gfxcapture,gradients,life,mandelbrot,mptestsrc,perlin,frei0r_src,qrencodesrc,allrgb,allyuv,color,colorchart,colorspectrum,haldclutsrc,nullsrc,pal75bars,pal100bars,rgbtestsrc,smptebars,smptehdbars,testsrc,testsrc2,yuvtestsrc,openclsrc,sierpinski,zoneplate。音频源：abuffer,aevalsrc,afdelaysrc,afireqsrc,afirsrc,anullsrc,flite,anoisesrc,hilbert,sinc,sine。汇：buffersink,nullsink,abuffersink,anullsink。多媒体源：amovie,avsynctest,movie。多媒体滤镜（音视频通用，音频版带 a 前缀）：
+
+a3dscope, abench, abitscope, adrawgraph, agraphmonitor, ahistogram, aphasemeter, alatency, ametadata, amovie, aperms, arealtime, asegment, aselect, asendcmd, asetpts, asettb, asidedata, asplit, avectorscope, azmq, bench, concat, ebur128, interleave, latency, metadata, movie, perms, realtime, segment, select, sendcmd, setpts, setrange, settb, showcqt, showcwt, showfreqs, showspatial, showspectrum, showspectrumpic, showvolume, showwaves, showwavespic, sidedata, spectrumsynth, split, zmq（a 前缀为音频版，功能见官方 Multimedia Filters 章）。
+
+## 常用滤镜详解
+
+- **scale**：libswscale 缩放。`w`/`h` 表达式（常量 `iw`/`ih`/`dar`/`sar`），0 取输入值、`-n` 保比例整除，`flags` 选算法（见[缩放器](/docs/scaler/)）。示例：`scale=w=200:h=100`、`scale=qcif`、`scale='trunc(ih*dar):ih',setsar=1/1`。
+- **fps**：`fps` 默认 25，可用 `ntsc`/`pal`/`film` 等缩写；`round` 默认 near。例：`fps=fps=film:round=near`。
+- **crop** `w:h:x:y`：默认居中，x/y 逐帧求值可做运镜。例：`crop=100:100:12:34`、`crop=in_w-2*10:in_h-2*20`。
+- **pad** `w:h:x:y:color`：0 取输入尺寸、负偏移自动居中。例：`pad=640:480:0:40:violet`、`pad="3/2*iw:3/2*ih:(ow-iw)/2:(oh-ih)/2"`、16:9 含 sar 修正 `pad="ih*16/9/sar:ih:(ow-iw)/2:(oh-ih)/2"`。
+- **overlay**：`x`/`y` 可用 `main_w-overlay_w` 定位角落；`format`、`shortest` 等见 framesync。
+- **transpose**：`dir` 取 `cclock_flip`（默认）/`clock`/`cclock`/`clock_flip`；`passthrough` 控制跳过。竖拍转正常用。
+- **fade**：`t=in|out`，帧 `s`/`n`、秒 `st`/`d`，可 `color`、`alpha`。例：`fade=in:0:30`、`fade=t=in:st=5.5:d=0.5`。
+- **drawtext**（需 libfreetype 等）：`text`/`textfile`、`fontfile`、`fontsize`、`fontcolor`、`box`、`timecode`、`enable`。示例：`drawtext="fontsize=30:fontfile=FreeSerif.ttf:text='hello world':x=(w-text_w)/2:y=(h-text_h)/2"`。
+- **format**：`pix_fmts=yuv420p|yuv444p`，另有 `color_spaces`/`color_ranges`/`alpha_modes`。
+- **去交错**：`yadif`/`bwdif`/`w3fdif`/`nnedi`/`mcdeint`（检测 `idet`）。`bwdif`：`mode`、`parity`、`deint`。
+- **hqdn3d**：`luma_spatial` 等四参数，去噪并提升可压缩性。
+- **concat**：`n` 段、`v`、`a`；各段流数一致、参数先归一、从 0 时基起。官方示例：`ffmpeg -i opening.mkv -i episode.mkv -i ending.mkv -filter_complex '[0:0] [0:1] [0:2] [1:0] [1:1] [1:2] [2:0] [2:1] [2:2] concat=n=3:v=1:a=2 [v] [a1] [a2]' -map '[v]' -map '[a1]' -map '[a2]' output.mkv`。
+- **amix**：`inputs`、`duration`、`dropout_transition`、`weights`、`normalize`。官方示例：`ffmpeg -i INPUT1 -i INPUT2 -i INPUT3 -filter_complex amix=inputs=3:duration=first:dropout_transition=3 OUTPUT`。
+- **volume**：`volume=0.5`、`volume=6dB`、逐帧 `volume='if(lt(t,10),1,max(1-(t-10)/5,0))':eval=frame`。
+- **trim/atrim、setpts/asetpts**：截取后重置时戳 `setpts=PTS-STARTPTS`；`setpts=2.0*PTS` 放慢。
+- **showinfo/ashowinfo**：逐帧打印 n、pts、fmt 等。
+- **hue/eq**：`hue=h:s:b`；`eq` 调 `brightness`/`contrast`/`saturation`/`gamma`（含 R/G/B）。
+
+## 参见
+
+[ffmpeg 主手册](/docs/ffmpeg/)；官方：[https://ffmpeg.org/ffmpeg-filters.html](https://ffmpeg.org/ffmpeg-filters.html)。
+
+## 作者
+
+FFmpeg 开发者，详见 [https://git.ffmpeg.org/ffmpeg](https://git.ffmpeg.org/ffmpeg)；维护者列在源码树 MAINTAINERS 文件。

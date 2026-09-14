@@ -1,0 +1,204 @@
+---
+title: 编解码器
+description: FFmpeg 编解码器选项、常用编解码器与比特流过滤器中文手册
+group: 组件手册
+order: 1
+source: https://ffmpeg.org/ffmpeg-codecs.html
+---
+
+## 说明
+
+libavcodec 提供编解码器（encoder/decoder）：解码器把包（packet）解为原始帧，编码器反向工作。构建时默认启用全部原生编解码器；依赖外部库的需用对应 `--enable-libXXX` 手动开启，可用 `--list-decoders`、`--list-encoders` 列出，工具的 `-decoders`、`-encoders` 显示当前启用列表（合并视图见 `-codecs`）。
+
+自 8.1 起官方手册不再罗列全部编解码器，只收录带专用文档与私有选项的条目。本页先给出常用编解码器速查表，再翻译官方收录的条目；全量支持情况以 `ffmpeg -codecs` 输出为准。
+
+## 编解码器选项
+
+libavcodec 提供可设置于所有编解码器的通用全局选项，另有各编解码器私有选项；用 `-选项 值`、`AVCodecContext` 或 `libavutil/opt.h` API 设置。常用通用选项（完整列表见[官方手册](https://ffmpeg.org/ffmpeg-codecs.html#Codec-Options)）：
+
+| 选项 | 说明 | 默认值 |
+| --- | --- | --- |
+| `b` | 码率（bit/s），编码时设置即启用 ABR/CBR | 200K |
+| `ab` | 音频码率（bit/s） | 128K |
+| `bt` | 视频码率容差（1 遍码率控制偏离目标的幅度） | 无 |
+| `g` | GOP 大小（关键帧间隔，帧数） | 12 |
+| `time_base` | 时间基（`分母/分子` 形式） | 无 |
+| `ar` | 音频采样率（Hz） | 无 |
+| `qmin` / `qmax` / `qdiff` | 最小/最大量化器及相邻帧最大差 | 编码族默认 |
+| `bf` | I/P 帧之间 B 帧数 | -1（自动） |
+| `maxrate` / `minrate` / `bufsize` | 码率控制上下限与 VBV 缓冲大小 | 无 |
+| `i_qfactor` / `b_qfactor`（及 `*_qoffset`） | I/B 帧相对 P 帧的量化器比例与偏移 | 无 |
+| `subq` | 亚像素 RD 度量质量（0-7，越大越慢越好） | 7 |
+| `global_quality` | 以量化器尺度表达的编码质量（VBR） | 无 |
+| `threads` | 线程数，0 自动 | 0 |
+| `profile` / `level` | 编解码器规范档位与级别 | auto |
+| `compression_level` | 压缩级别（越小越快） | 无 |
+| `strict` | 遵循标准的严格程度（`unofficial` 允许非标准扩展） | 无 |
+| `skip_loop_filter` / `skip_idct` / `skip_frame` | 跳过去块滤波/IDCT/解码以提速（如 `nonkey`） | none |
+| `err_detect` | 错误检测与容错标志 | 无 |
+| `sub_charenc` | 字幕解码源字符集（如 `gbk`） | 无 |
+| `apply_cropping` | 应用显示裁剪 | 1 |
+
+## 常用编解码器速查表
+
+### 视频
+
+| 名称 | 解码 | 编码 | 一句话说明 |
+| --- | --- | --- | --- |
+| `h264` | 内置 | libx264 / libopenh264 / 硬件 | H.264/AVC |
+| `hevc` | 内置（含 MV-HEVC） | libx265 / 硬件 | H.265/HEVC |
+| `av1` | 内置、libdav1d、libaom | libaom-av1、libsvtav1、librav1e | AV1 |
+| `vp8` / `vp9` | 内置 | libvpx / libvpx-vp9 | WebM 家族 |
+| `prores` / `prores_ks` | 内置 | 内置 | Apple ProRes |
+| `mpeg2video` | 内置 | mpeg2（内置） | MPEG-2/DVD |
+| `mpeg4` | 内置 | 内置 | MPEG-4 Part 2（含 DivX/Xvid 兼容；libxvid 为外部封装） |
+| `libx264` | 否 | 是 | x264 封装：最常用 H.264 编码器 |
+| `libx265` | 否 | 是 | x265 封装：常用 HEVC 编码器 |
+| `mjpeg` / `jpegls` / `ljpeg` | 内置 | 内置（部分） | 运动 JPEG 与无损 JPEG |
+| `dvvideo` | 内置 | 内置 | DV 磁带 |
+| `dnxhd` | 内置 | 内置 | Avid DNxHD/DNxHR |
+| `theora` | 内置 | libtheora | Ogg 视频 |
+| `vc1` / `wmv3` / `rv40` / `flv(h263)` | 内置 | 多数仅解码 | 旧网络/Windows 视频 |
+| `ffv1` / `hap` / `vbn` / `vc2` / `jpeg2000` | 内置/库 | 内置或库 | 归档与游戏/广电格式 |
+| `qsv` / `vaapi` / `videotoolbox` / `mediacodec` / `mf` | 硬件 | 硬件 | 硬件加速编解码族 |
+
+### 音频
+
+| 名称 | 解码 | 编码 | 一句话说明 |
+| --- | --- | --- | --- |
+| `aac` | 内置 | 内置 aac / libfdk_aac | AAC-LC 主流音频 |
+| `mp3`(mp3float) / `mp3adu` | 内置 | libmp3lame / libshine | MP3 |
+| `opus` | 内置 | libopus（推荐）/ opus（内置，开发中） | 低延迟宽带音频 |
+| `vorbis` | 内置 | libvorbis | Ogg 音频 |
+| `flac` | 内置 | 内置 | 无损压缩 |
+| `alac` / `tta` / `wavpack` / `ape` | 内置 | wavpack 内置 | 无损家族 |
+| `pcm_s16le` 等 `pcm_*` | 内置 | 内置 | 裸 PCM 按位深/端序/浮点分族 |
+| `ac3` / `eac3` | 内置 | ac3、ac3_fixed、eac3（浮点） | Dolby |
+| `truehd` / `mlp` | 内置 | 仅解码 | Dolby TrueHD / Meridian MLP |
+| `dts` / `dca` | 内置 | 仅解码 | DTS |
+| `g722` / `g726` / `g723_1` / `gsm` / `speex` | 内置 | 部分 | 电话语音 |
+| `amr_nb`/`amr_wb` | libopencore-amrnb / libvo-amrwbenc | 同名库 | 移动语音 |
+| `mp2` / `mp1` | 内置 | libtwolame、mp2 | 广播/DVD 音频 |
+
+### 字幕与图像
+
+| 名称 | 解码 | 编码 | 一句话说明 |
+| --- | --- | --- | --- |
+| `subrip`（SRT） | 内置 | 内置 | 文本字幕 SRT |
+| `ass` / `ssa` | 内置 | 内置 | Aegisub 样式字幕 |
+| `webvtt` | 内置 | 内置 | WebVTT |
+| `mov_text` | 内置 | 内置 | MP4 内文本字幕 |
+| `dvdsub` / `dvbsub` | 内置 | 内置 | DVD/DVB 位图字幕 |
+| `text` | 内置 | 内置 | 无时间纯文本 |
+| `sami` / `subviewer` / `vplayer` / `jacosub` / `microdvd` / `lrc` | 内置 | 部分 | 老式/歌词字幕 |
+| `arib_caption` / `teletext` | libaribcaption / libzvbi-teletext | 仅解码 | 日播/传真字幕 |
+| `png` / `gif` / `bmp` / `tiff` | 内置 | 内置 | 图像 |
+| `jpeg` / `webp` / `avif` / `jxl` | 内置、libwebp | libwebp、libjxl、内置（部分） | 现代图像 |
+
+> 表中“内置”指 libavcodec 原生实现；完整且权威的列表请运行 `ffmpeg -codecs`。
+
+## 官方条目详解
+
+### AV1 解码与编码
+
+解码器 `av1`（原生）与 `libdav1d`（高性能 Dav1d 封装）、`libaom-av1`/`libsvtav1`/`librav1e`（编码）。原生 av1 解码选项：`operating_point` 选择可伸缩码流的运行点（0 至 31，默认 0）。编码器：`libaom-av1` 是 AOM 官方实现（慢但参考质量），`libsvtav1`（SVT-AV1）面向速度、`librav1e` 为 Rust 实现，均有 `crf`、`cpu-used`/`preset` 类选项，完整选项见官方：[libaom-av1](https://ffmpeg.org/ffmpeg-codecs.html#toc-Options)、[libsvtav1](https://ffmpeg.org/ffmpeg-codecs.html#toc-Options)、[librav1e](https://ffmpeg.org/ffmpeg-codecs.html#toc-Options)。另有 `libxevd`（解码）/`libxeve`（编码）的 VEVC、`liboapv`。
+
+### H.264 / HEVC 解码
+
+H.264 解码无专门条目（原生 `h264` 解码器 + 各硬件解码）。`hevc` 解码器支持 MV-HEVC 多视角（至多两个视角）：经 `view_ids` 选项给出要输出的视角 ID 列表（可在初始化解码器前静态设置，或由 `get_format()` 回调动态设置），默认只解基层；用 ffmpeg 命令行时请改用其文档的视角指定符。
+
+x264/x265 外部编码器见下节；QSV/VAAPI/VideoToolbox 硬件 H.264/HEVC 编码见对应小节。
+
+### libx264, libx264rgb（H.264 编码）
+
+x264 封装，构建时需 `--enable-libx264`。特性丰富：8x8/4x4 自适应变换、自适应 B 帧、CAVLC/CABAC、MBAFF 交错、无损、psy 优化等。多数选项映射到通用编解码器选项，专属项经 `x264opts`、`x264-params` 以 `key=value` 列表透传（x264 的 `x264_param_parse` 语法）。`libx264rgb` 相同但接受打包 RGB 输入。支持 8 至 10 bit（取决于 x264 构建）。常用映射（括号内为 x264 原名）：`b`（bitrate，注意 FFmpeg 用 bit/s、x264 用 kbit/s）、`bf`（bframes）、`g`（keyint）、`qmin`/`qmax`（qpmin/qpmax）、`refs`（ref，0 至 16）、`level`、`preset`、`tune`、`profile`、`crf`、`qp`。完整迁移表见[官方](https://ffmpeg.org/ffmpeg-codecs.html#toc-Options-15)。
+
+### libx265（HEVC 编码）
+
+x265 封装，需 `--enable-libx265`。选项与 x265 同名映射：`b`、`g`（GOP）、`keyint_min`、`refs`（1 至 16）、`preset`、`tune`、`profile`、`crf`、`qp`、`qmin/qmax`、`forced-idr`（强制 IDR 而非任意 I 帧）、`x265-params`（key=value 列表透传）、`udu_sei`（导入未注册用户数据 SEI）。
+
+### VP8/VP9：libvpx
+
+需 `--enable-libvpx`；`libvpx`（VP8）与 `libvpx-vp9`。选项以 vpxenc 名对照迁移：`b`（target-bitrate，bit/s 对 kbit/s）、`g`（kf-max-dist）、`qmin`/`qmax`（min-q/max-q）、`bufsize`（buf-sz/buf-optimal-sz）、`rc_init_occupancy` 等；帮助见 `ffmpeg -h encoder=libvpx-vp9` 或 `vpxenc --help`。
+
+### ProRes
+
+FFmpeg 有两个 ProRes 编码器：`prores_ks`（编码器名 `prores_ks`）与 `prores_aw`，用 `-c:v` 选择。`prores_ks` 私有选项：`profile`（0 至 4：`proxy`、`lt`、`standard`、`hq`、`4444`、`4444xq`）、`quant_mat`（auto 或按档位）、`bits_per_mb`（每宏块位数 200 至 8000）、`mbs_per_slice`（1 至 8，默认 8）、`vendor`（4 字节厂商 ID，如 `apl0`）、`alpha_bits`（0/8/16）。速度：细节多的帧难以压缩会拖慢搜索；调高 `bits_per_mb` 提速，最快是设 `qscale=4` 且不设尺寸约束。
+
+### mpeg2（MPEG-2 视频编码）
+
+选项：`profile`（`422`、`high`、`ss`、`snr`、`main`、`simple`）、`level`（`high`、`high1440`、`main`、`low`）、`seq_disp_ext`（-1 自动/0 从不/1 总是写序列显示扩展）、`video_format`（unspecified/component/pal/ntsc/secam 等）、`gop_size` 类通用项见上表。
+
+### AAC 编码（内置 aac 与 libfdk_aac）
+
+内置 `aac` 是 FFmpeg 原生默认 AAC 编码器。选项：`b`（bit/s，设了即 CBR，默认 128k）、`q`（VBR 质量，CLI 用；库用 `global_quality`）、`cutoff`（不指定则按码率动态调整）、`aac_coder`（`twoloop` 默认 / `anmr` 实验性 / `fast` 高码率快）、`aac_ms`（中侧编码 auto/enable/disable）、`aac_is`（强度立体声，默认开）、`aac_pns`（感知噪声置换，默认开）、`aac_tns`（高频时域噪声整形，默认开）、`aac_ltp`（长时预测，低码率语音增益）、`profile`（`aac_low` 默认、`mpeg2_aac_low`、`aac_ltp`）。`libfdk_aac` 为 Fraunhofer fdk-aac 封装（需 `--enable-libfdk-aac`），提供 `profile`、`object_type`、`bitrate_mode`（CBR/VBR 2 至 5）、`lc_sbr`/`he_aac` 等。
+
+### MP3：libmp3lame
+
+LAME 封装，需 `--enable-libmp3lame`；选项括号内为 lame 原名：`b`（-b，bit/s 对 kbit/s，CBR/ABR）、`q`（-V，VBR 恒定质量，CLI 用）、`compression_level`（-q，0 最好最慢至 9 最快最差）、`cutoff`（--lowpass）、`reservoir`（比特池，默认 1）、`joint_stereo`（-m j，默认 1）、`abr`（--abr，启用 ABR 但码率仍由 `b` 决定）、`copyright`（-c）。固定点替代：`libshine`（质量较低）。
+
+### Opus：libopus 与内置 opus
+
+内置 `opus` 编码器仍在开发、仅实现 CELT 部分，质量通常不优于 `libopus`（推荐，需 `--enable-libopus`），后者的选项多数仿照 opus-tools 的 `opusenc`：`b`（bitrate）、`vbr`（off/on/constrained 对应 hard-cbr/vbr/cvbr）、`application`（voip/audio/lowdelay）、`frame_duration`（2.5 至 120 ms）、`packet_loss`（0 至 100）、`mapping_family`（-1 自动、0、1、255）、`dtx`、`apply_phase_inv`（关闭相位反转变换可改善单声道下混）。
+
+### Vorbis：libvorbis
+
+需 libvorbisenc；选项括号内为 oggenc 原名：`b`（-b，ABR bit/s）、`q`（-q，VBR 恒定质量，-1.0 至 10.0，默认 3.0，越大越好）、`cutoff`（截止带宽 Hz，0 关闭，默认 0）、`minrate`/`maxrate`（-m/-M）、`iblock`（冲击噪声偏差）。
+
+### FLAC
+
+解码器原生实现完整 Xiph FLAC 规范；选项 `use_buggy_lpc` 用于正确解码 lavc 旧版高 LPC 阶数的有缺陷码流。编码器 `flac` 选项：`compression_level`（0 至 12，默认 5，同时决定其他项默认值）、`frame_size`（每声道样本数）、`lpc_coeff_precision`（1 至 15，默认 15）、`lpc_type`（none/fixed/levinson/cholesky）、`lpc_passes`、`min_partition_order`/`max_partition_order`、`prediction_order_method`、`lpc_max_depth` 等。
+
+### PCM 家族
+
+`pcm_s16le`、`pcm_f32be`、`pcm_alaw`、`pcm_mulaw` 等按位宽、符号、端序、浮点组合命名，编解码均为内置；官方手册仅收录特例 `pcm_dvda`（解码）。裸流封装见[格式手册的 PCM 一节](/docs/formats/)。
+
+### 字幕编解码器
+
+官方手册仅收录 `dvbsub`、`dvdsub`（位图字幕，含 `stream_index` 等选项）、`libaribb24`/`libaribcaption`（ARIB 日播字幕）与 `libzvbi-teletext`。文本类 `subrip`（SRT）、`ass`、`webvtt`、`mov_text`、`text` 无独立条目：转码用 `-c:s` 指定即可，例如 `ffmpeg -i in.mkv out.srt` 自动转 `subrip`；ASS 烧录走 [subtitles 滤镜](/docs/filters/)。字符集问题用通用选项 `sub_charenc`/`sub_charenc_mode`。
+
+## 比特流过滤器
+
+比特流过滤器（bitstream filter）直接改写压缩包数据而不重新编码，用 `-bsf:`（如 `-bsf:v h264_mp4toannexb`）或 `-c copy -bsf` 配合使用。当前列表（全量与详情见官方：[https://ffmpeg.org/ffmpeg-bitstream-filters.html](https://ffmpeg.org/ffmpeg-bitstream-filters.html)）：
+
+| 名称 | 用途 |
+| --- | --- |
+| `aac_adtstoasc` | ADTS AAC 转 AudioSpecificConfig |
+| `av1_metadata` | 修改 AV1 内嵌元数据 |
+| `chomp` | 去除包尾零填充 |
+| `dca_core` | 从 DTS 提取核心层（丢 DTS-HD） |
+| `dovi_rpu` / `dovi_split` | Dolby Vision RPU 元数据处理/分层拆分 |
+| `dump_extra` | 把 extradata 加到包头 |
+| `dv_error_marker` | 用指定颜色替换 DV 损坏块 |
+| `eac3_core` | 从 E-AC-3 提取核心（丢额外声道） |
+| `eia608_to_smpte436m` / `smpte436m_to_eia608` | 608 字幕与 SMPTE-436M VANC 互转 |
+| `extract_extradata` | 提取带内 extradata |
+| `filter_units` | 按单元类型集合删改流（H.264/HEVC 等） |
+| `hapqa_extract` | HAPQA 抽 RGB 或 Alpha 部分 |
+| `h264_metadata` / `hevc_metadata` / `mpeg2_metadata` / `vp9_metadata` | 修改对应流元数据 |
+| `h264_mp4toannexb` / `hevc_mp4toannexb` | 长度前缀转 Annex B 起始码（MP4 转 TS/HLS 常用） |
+| `h264_redundant_pps` | 修复蓝光冗余 PPS |
+| `imxdump` | IMX/D-10 适配 MOV 与 Final Cut Pro |
+| `mjpeg2jpeg` / `mjpegadump` | MJPEG/AVI1 与完整 JPEG/JFIF 互转、补 MJPEG A 头 |
+| `mov2textsub` / `text2movsub` | MOV 字幕与文本互转 |
+| `mpeg4_unpack_bframes` | 解包 DivX 风格 packed B 帧 |
+| `noise` | 注噪/丢包，测试容错 |
+| `null` | 原样透传 |
+| `pcm_rechunk` | PCM 重新分包（固定样本数/包率） |
+| `pgs_frame_merge` | PGS 段合并为整包 |
+| `prores_metadata` | 修改 ProRes 颜色属性元数据 |
+| `remove_extra` | 删除 extradata |
+| `setts` | 改写包 PTS/DTS |
+| `showinfo` | 打印包基本信息（调试） |
+| `trace_headers` | 逐字段跟踪码流头部语法 |
+| `trim` | 按范围丢包（作用于包而非帧） |
+| `truehd_core` | 从 TrueHD 丢 ATMOS 提取核心 |
+| `vp9_superframe` / `vp9_superframe_split` / `vp9_raw_reorder` | VP9 超帧合并/拆分/重排 |
+
+## 参见
+
+[ffmpeg 主手册](/docs/ffmpeg/)、[封装格式](/docs/formats/)、[滤镜](/docs/filters/)；官方页面：[https://ffmpeg.org/ffmpeg-codecs.html](https://ffmpeg.org/ffmpeg-codecs.html)。
+
+## 作者
+
+FFmpeg 开发者，详见 [https://git.ffmpeg.org/ffmpeg](https://git.ffmpeg.org/ffmpeg)；维护者列在源码树 MAINTAINERS 文件。

@@ -1,0 +1,78 @@
+---
+title: 视频转换器(缩放器)
+description: FFmpeg 视频缩放器 swscale 选项与缩放算法中文手册
+group: 组件手册
+order: 6
+source: https://ffmpeg.org/ffmpeg-scaler.html
+---
+
+## 说明
+
+FFmpeg 缩放器（rescaler）为 libswscale 库的图像转换工具提供了高层接口，主要用于图像缩放与像素格式转换。你在 `ffmpeg` 中转码改变分辨率或像素格式时，底层默认就是它在工作；滤镜层的对应用处见 [scale 滤镜](/docs/filters/)。
+
+## 缩放器选项
+
+视频缩放器支持以下命名选项。可在 FFmpeg 工具中用 `-选项 值` 设置（少数仅 API 使用的选项见下表标注）；编程使用时可在 `SwsContext` 中显式设置，或通过 `libavutil/opt.h` API 设置。
+
+| 选项 | 说明 | 默认值 |
+| --- | --- | --- |
+| `scaler`, `scaler_sub` | 选择缩放算法，取值见下方算法表。`scaler_sub` 为二次（色度）缩放算法 | 两者均为 `auto` |
+| `sws_flags` | 设置缩放器标志，也可用于选择缩放算法（该用法已弃用，建议改用 `scaler`），只能选一种算法 | `bicubic` |
+| `srcw` / `srch`（仅 API） | 源图像宽/高 | 无 |
+| `dstw` / `dsth`（仅 API） | 目标图像宽/高 | 无 |
+| `src_format` / `dst_format`（仅 API） | 源/目标像素格式（必须以整数表达） | 无 |
+| `src_range` | 设为 1 表示源为全范围（full range），0 表示有限范围（limited range） | 0 |
+| `dst_range` | 设为 1 表示目标启用全范围 | 0 |
+| `gamma` | 设为 1 启用 gamma 校正缩放 | 0 |
+| `param0`, `param1` | 缩放算法参数，浮点数；仅对部分算法有意义，其余算法会忽略 | 无 |
+| `sws_dither` | 抖振算法，见下方抖振表 | `auto` |
+| `alphablend` | 输入含 alpha 而输出不含时的 alpha 混合方式：`uniform_color`（混合到单一背景色）、`checkerboard`（混合到棋盘格）、`none`（不混合） | `none` |
+| `sws_backends` | 允许的 swscale 后端（flags 选项，可组合）：`auto`、`stable`、`unstable`、`all`、`legacy`（传统 swscale 代码）、`c`（模板参考实现）、`memcpy`（libc memcpy 快速路径）、`x86`（x86 SIMD 内核）、`aarch64`（AArch64 NEON 内核）、`spirv`（Vulkan SPIR-V 后端） | `auto` |
+
+> 完整列表见官方手册：[https://ffmpeg.org/ffmpeg-scaler.html](https://ffmpeg.org/ffmpeg-scaler.html)。
+
+### 缩放算法（scaler 取值）
+
+| 值 | 说明 |
+| --- | --- |
+| `auto` | 自动选择。对 `scaler_sub` 表示与 `scaler` 相同；对 `scaler` 则取 `sws_flags` 所选标志 |
+| `bilinear` | 双线性滤波（三角滤波） |
+| `bicubic` | 2 抽头三次 BC 样条（即 Mitchell-Netravali 样条）。B、C 参数由 `param0`、`param1` 配置，默认 0.0 与 0.6 |
+| `point`, `neighbor` | 点采样（最近邻） |
+| `area` | 面积平均；放大时与 `bilinear` 等效 |
+| `gaussian` | 2 抽头高斯滤波近似，锐度由 `param0` 配置，默认 3.0 |
+| `sinc` | 加窗 sinc 滤波 |
+| `lanczos` | Lanczos 重采样（sinc 窗 sinc），抽头数由 `param0` 配置，默认 3 |
+| `spline` | 不加窗的自然双三次样条 |
+
+### sws_flags 取值
+
+以下算法选择项均已弃用：`fast_bilinear`、`bilinear`、`bicubic`、`experimental`、`neighbor`（最近邻）、`area`（面积平均）、`bicublin`（亮度双三次、色度双线性）、`gauss`、`sinc`、`lanczos`（默认宽度 alpha 为 3，可用 `param0` 修改）、`spline`。其余仍可用的标志：
+
+| 标志 | 说明 |
+| --- | --- |
+| `print_info` | 启用打印/调试日志 |
+| `accurate_rnd` | 启用精确舍入 |
+| `full_chroma_int` | 启用全色度插值 |
+| `full_chroma_inp` | 选择全色度输入 |
+| `bitexact` | 启用 bitexact 输出 |
+| `unstable` | 允许实验性新代码，可能轻微影响甚至错误改变输出，仅供测试 |
+
+### sws_dither 取值
+
+| 值 | 说明 |
+| --- | --- |
+| `auto` | 自动选择 |
+| `none` | 不抖振 |
+| `bayer` | Bayer 抖振 |
+| `ed` | 误差扩散抖振 |
+| `a_dither` | 基于加法的算术抖振 |
+| `x_dither` | 基于 xor 的算术抖振（比 a_dither 更随机、图案更不明显） |
+
+## 参见
+
+[ffmpeg](https://ffmpeg.org/ffmpeg.html)、ffplay、ffprobe、libswscale。
+
+## 作者
+
+FFmpeg 开发者。作者详情见项目 Git 历史（[https://git.ffmpeg.org/ffmpeg](https://git.ffmpeg.org/ffmpeg)），可在源码目录执行 `git log`，或在线浏览该仓库。各组件维护者列在源码树的 MAINTAINERS 文件中。

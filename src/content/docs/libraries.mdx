@@ -1,0 +1,69 @@
+---
+title: FFmpeg 七大开发库
+description: FFmpeg 各开发库的职责、API 文档位置与用 C 库解码的入门指引。
+group: 开发库
+order: 1
+source: https://ffmpeg.org/documentation.html
+---
+
+FFmpeg 是一套用于处理多媒体内容（音频、视频、字幕及相关元数据）的库和工具集合。命令行工具 `ffmpeg`、`ffplay`、`ffprobe` 都构建在下面这组库之上，你也可以在自己的 C/C++ 程序里直接使用它们。
+
+## 七大库的职责
+
+| 库 | 职责 |
+| --- | --- |
+| `libavcodec` | 提供大量编解码器的实现，负责音频、视频与字幕的编码、解码及比特流处理 |
+| `libavformat` | 实现流媒体协议、容器格式（混流器/解流器）以及基础的 I/O 访问 |
+| `libavutil` | 底层公共设施：内存、字典、帧与采样格式描述、哈希器、解压缩器等各类工具函数 |
+| `libavfilter` | 通过相互连接的滤镜（滤镜图）改变已解码音视频帧的手段 |
+| `libavdevice` | 访问采集与播放设备（摄像头、声卡、屏幕等）的抽象层 |
+| `libswresample` | 音频重采样、采样格式转换、声道布局转换与混音例程 |
+| `libswscale` | 视频色彩空间转换与缩放例程 |
+
+各库的手册页（含逐选项说明）：[libavcodec](https://ffmpeg.org/libavcodec.html)、[libavformat](https://ffmpeg.org/libavformat.html)、[libavutil](https://ffmpeg.org/libavutil.html)、[libavfilter](https://ffmpeg.org/libavfilter.html)、[libavdevice](https://ffmpeg.org/libavdevice.html)、[libswresample](https://ffmpeg.org/libswresample.html)、[libswscale](https://ffmpeg.org/libswscale.html)。组件级的长列表手册（编解码器、封装格式、滤镜、设备）也都有对应页面，如[编解码器列表](https://ffmpeg.org/ffmpeg-codecs.html)、[格式与协议列表](https://ffmpeg.org/ffmpeg-formats.html)、[滤镜列表](/docs/filters/)。
+
+## API 文档在哪里
+
+FFmpeg 的 C API 文档由 Doxygen 从头文件生成，每晚随 git trunk 重新生成一次：
+
+- 当前 trunk：[https://ffmpeg.org/doxygen/trunk/index.html](https://ffmpeg.org/doxygen/trunk/index.html)
+- 各发行版分支也有对应版本，如 [8.0](https://ffmpeg.org/doxygen/8.0/index.html)、[7.1](https://ffmpeg.org/doxygen/7.1/index.html)、[6.1](https://ffmpeg.org/doxygen/6.1/index.html)，把 URL 中的版本号替换即可。
+- 离线查阅：安装后的头文件本身就是权威文档，源码树 `doc/`（[GitHub 上的 doc 目录](https://github.com/FFmpeg/FFmpeg/tree/master/doc)）包含全部手册源文件。
+- 旧版本请查阅你本地安装随附的文档；站点导航的[组件手册](/docs/filters/)等页面对应当前发行的中文译文。
+
+API/ABI 兼容性规则：在同一 major 版本内公共 API 保持向后兼容，废弃接口在下一个 major 版本、历经至少三个发行后移除；库版本号的第三个分量始终从 100 起，用以区分 FFmpeg 与 Libav。
+
+## 用 C 库解码：从哪里入手
+
+官方在源码树 [doc/examples](https://github.com/FFmpeg/FFmpeg/tree/master/doc/examples) 维护了一组可编译的示例程序（`make` 之前先 `./configure`，默认安装到 `$PREFIX/share/ffmpeg/examples`），覆盖了解码、编码、混流、滤镜、缩放、重采样与硬件加速等典型场景，是阅读 API 文档之外最好的入口。
+
+以解码视频为例，典型流程是：用 `avformat_open_input()` 打开输入并由 `avformat_find_stream_info()` 探测各流；用 `av_find_best_stream()` 选出目标视频流；创建 `AVCodecContext` 并用 `avcodec_parameters_to_context()` 复制流参数；随后循环读取 `AVPacket`、送入 `avcodec_send_packet()` / `avcodec_receive_frame()` 得到解码后的 `AVFrame`。把这套流程写进自己程序前，先读下面的官方示例：
+
+| 示例 | 一句话用途 |
+| --- | --- |
+| `decode_video.c` | 演示最小可用的视频解码流程，最常从它读起 |
+| `decode_audio.c` | 演示最小可用的音频解码流程 |
+| `demux_decode.c` | 解流与解码组合成的完整输入流水线 |
+| `avio_read_callback.c` | 用自定义读回调构造 `AVIOContext`，从内存或自有 API 喂数据给 libavformat |
+| `avio_list_dir.c` | 演示文件协议的目录列举功能 |
+| `avio_http_serve_files.c` | 用 avio 协议内置的 HTTP 服务器分发本地文件 |
+| `show_metadata.c` | 打印媒体文件携带的全部元数据 |
+| `remux.c` | 不重新编码，仅用 libavformat 换容器转混流 |
+| `mux.c` | 生成帧并写入媒体文件的混流示例 |
+| `encode_video.c` | 基本视频编码流程 |
+| `encode_audio.c` | 基本音频编码流程 |
+| `transcode.c` | 用 libav* 全家桶完成转码的端到端示例 |
+| `transcode_aac.c` | 把媒体文件转成 AAC 的独立实用程序 |
+| `decode_filter_video.c` | 解码视频并叠加滤镜图处理 |
+| `decode_filter_audio.c` | 解码音频并叠加滤镜图处理 |
+| `filter_audio.c` | 单独使用 libavfilter 处理音频 |
+| `scale_video.c` | 用 libswscale 做像素格式转换与缩放 |
+| `resample_audio.c` | 用 libswresample 做采样率、格式与声道转换 |
+| `hw_decode.c` | 硬件加速解码，可在多数受支持平台上工作 |
+| `qsv_decode.c` | 用 Intel QSV 解码 |
+| `qsv_transcode.c` | 用 Intel QSV 转码 |
+| `vaapi_encode.c` | 用 VA-API 编码 |
+| `vaapi_transcode.c` | 用 VA-API 解码加编码转码 |
+| `extract_mvs.c` | 提取视频的运动矢量（仅适用于 H.264） |
+
+另外，[开发者文档](https://ffmpeg.org/developer.html)说明了库的贡献规则与公共接口政策，[legal 页](https://ffmpeg.org/legal.html)说明了以 LGPL/GPL 使用这些库的分发义务，源码树 LICENSE 文件是最终依据。

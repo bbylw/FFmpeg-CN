@@ -1,0 +1,68 @@
+---
+title: 其他辅助工具
+description: aviocat、ismindex、qt-faststart 等小型辅助工具简介
+group: 命令行工具
+order: 4
+source: https://ffmpeg.org/ffmpeg.html
+---
+
+## 概述
+
+FFmpeg 是一套用于处理多媒体内容（音频、视频、字幕及相关元数据）的库和工具集合。除三大主命令行工具 [ffmpeg](/docs/ffmpeg/)、[ffplay](/docs/ffplay/)、[ffprobe](/docs/ffprobe/) 之外，代码库还附带若干其他小型工具，例如 `aviocat`、`ismindex` 和 `qt-faststart`。
+
+离线文档位于仓库的 [doc/](https://github.com/FFmpeg/FFmpeg/tree/master/doc) 目录，这三个工具的源码与用法注释位于 [tools/](https://github.com/FFmpeg/FFmpeg/tree/master/tools) 目录。以下介绍均以官方源码文件内的说明为准。
+
+## aviocat
+
+源码：[tools/aviocat.c](https://github.com/FFmpeg/FFmpeg/blob/master/tools/aviocat.c)。
+
+通过 AVIO 层读取和写入、对数据做原样拷贝的小工具；可选地把读写限制到指定速率，用来模拟实时写入。用法（取自程序 usage 输出，逐字保留）：
+
+```text
+aviocat [-b bytespersec] [-d duration] [-oi <options>] [-oo <options>] [-v] input_url output_url
+```
+
+`<options>` 为冒号分隔的 `key=value` 形式 AVOptions，`-oi`/`-oo` 分别作用于输入与输出；`-b` 指定每秒字节数，`-d` 指定时长，`-v` 打开详细输出。
+
+## ismindex
+
+源码：[tools/ismindex.c](https://github.com/FFmpeg/FFmpeg/blob/master/tools/ismindex.c)。
+
+为 IIS Smooth Streaming 生成索引：从 `.ismv` 文件生成 IIS 服务所需的 `.ism` 与 `.ismc`。官方源码注释给出的简单 Smooth Streaming 文件制作流程（逐字保留）：
+
+```text
+ffmpeg <normal input/transcoding options> -movflags frag_keyframe foo.ismv
+ismindex -n foo foo.ismv
+```
+
+用法：
+
+```text
+ismindex [-split] [-ismf] [-n basename] [-path-prefix prefix] [-ismc-prefix prefix] [-output dir] file1 [file2] ...
+```
+
+选项含义（据源码注释）：`-ismf` 额外生成 `.ismf`，记录片段名到 ismv 中起止偏移的映射，供自建流媒体服务器使用；`-path-prefix` 让生成的 `.ism` 以 `path/foo.ismv` 形式引用文件，`.ismc` 内的前缀用 `-ismc-prefix` 类似设置；`-split` 把文件预拆分，供 web 服务器以纯静态文件方式分发，生成 `Manifest` 与 `QualityLevels(...)` 目录，Smooth Streaming 播放器可直接读取；`-output dir` 把全部输出文件（`.ism`/`.ismc`，或拆分模式下的 `Manifest`/`QualityLevels*`）写入该目录（目录须已存在，工具不会创建）。
+
+## qt-faststart
+
+源码：[tools/qt-faststart.c](https://github.com/FFmpeg/FFmpeg/blob/master/tools/qt-faststart.c)（public domain，作者 Mike Melanson）。
+
+把 QuickTime 文件里的 `moov` atom 移动到数据之前，以便通过网络流式播放。限制（据源码注释）：文件最末一个 atom 必须是 `moov`；工具把 `moov` 移到文件头部并沿途修正 chunk 偏移；目前只处理未压缩的 `moov` atom。
+
+编译方式（在 FFmpeg 构建起始目录下执行，官方注释建议用此方式，否则不保证结果正确、64 位平台尤其如此）：
+
+```text
+make tools/qt-faststart
+```
+
+程序生成于 `tools/` 目录。调用方式：
+
+```text
+qt-faststart <infile.mov> <outfile.mov>
+```
+
+## 参见
+
+- 主工具手册：[ffmpeg 命令行工具](/docs/ffmpeg/)、[ffplay 命令行工具](/docs/ffplay/)、[ffprobe 命令行工具](/docs/ffprobe/)
+- 官方手册深链：[ffmpeg](https://ffmpeg.org/ffmpeg.html)、[ffplay](https://ffmpeg.org/ffplay.html)、[ffprobe](https://ffmpeg.org/ffprobe.html)、[ffmpeg-utils](https://ffmpeg.org/ffmpeg-utils.html)、[ffmpeg-codecs](https://ffmpeg.org/ffmpeg-codecs.html)、[ffmpeg-formats](https://ffmpeg.org/ffmpeg-formats.html)
+- 离线文档目录：[doc/](https://github.com/FFmpeg/FFmpeg/tree/master/doc)，在线文档见 [ffmpeg.org](https://ffmpeg.org) 与 [wiki](https://trac.ffmpeg.org)

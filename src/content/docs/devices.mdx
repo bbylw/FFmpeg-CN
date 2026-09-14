@@ -1,0 +1,158 @@
+---
+title: 输入输出设备
+description: FFmpeg libavdevice 输入与输出设备手册中文全译
+group: 组件手册
+order: 4
+source: https://ffmpeg.org/ffmpeg-devices.html
+---
+
+## 说明
+
+本文档描述 libavdevice 库提供的输入与输出设备。
+
+## 设备选项
+
+libavdevice 提供与 libavformat 相同的接口：输入设备被视为解流器（demuxer），输出设备被视为混流器（muxer），其接口与通用设备选项与 libavformat 一致（见 [ffmpeg 格式手册](https://ffmpeg.org/ffmpeg-formats.html)）。此外，每个输入或输出设备还可能支持该组件特有的私有选项。
+
+选项可用 `-选项 值` 在 FFmpeg 工具中设置，或在设备 `AVFormatContext` 选项中显式赋值，也可用 `libavutil/opt.h` API 编程设置。
+
+## 输入设备总表
+
+| 名称 | 平台 | 用途 |
+| --- | --- | --- |
+| `alsa` | Linux | ALSA 声卡采集 |
+| `android_camera` | Android | 安卓相机采集 |
+| `avfoundation` | macOS / iOS | Apple AVFoundation 采集 |
+| `decklink` | 跨平台（需 SDK） | Blackmagic DeckLink 采集 |
+| `dshow` | Windows | DirectShow 音视频设备采集 |
+| `fbdev` | Linux | 帧缓冲（/dev/fb0）采集 |
+| `gdigrab` | Windows | GDI 屏幕/窗口捕获 |
+| `iec61883` | Linux | 基于 libiec61883 的 FireWire DV/HDV |
+| `jack` | 跨平台 | JACK 音频采集 |
+| `kmsgrab` | Linux | KMS 视频采集 |
+| `lavfi` | 跨平台 | 滤镜图虚拟输入设备 |
+| `libcdio` | 跨平台 | 基于 libcdio 的音频 CD 输入 |
+| `libdc1394` | 跨平台 | IIDC1394（FireWire 相机）输入 |
+| `openal` | 跨平台 | OpenAL 1.1 音频采集 |
+| `oss` | Linux/BSD 等 | OSS 音频输入 |
+| `pulse` | Linux | PulseAudio 采集 |
+| `sndio` | OpenBSD 等 | sndio 采集 |
+| `v4l2`（video4linux2） | Linux | Video4Linux2 视频采集（如 USB 摄像头） |
+| `vfwcap` | Windows | VfW（Video for Windows）捕获 |
+| `x11grab` | Linux/Unix | X11 屏幕区域捕获 |
+
+> 完整列表与全部私有选项见官方手册：[https://ffmpeg.org/ffmpeg-devices.html](https://ffmpeg.org/ffmpeg-devices.html)。（8.1 手册中不含 pipewire 设备。）
+
+## 输出设备总表
+
+| 名称 | 平台 | 用途 |
+| --- | --- | --- |
+| `alsa` | Linux | ALSA 声卡播放 |
+| `AudioToolbox` | macOS | Apple AudioToolbox 输出 |
+| `caca` | 跨平台 | libcaca 字符终端显示 |
+| `decklink` | 跨平台（需 SDK） | DeckLink 播放输出 |
+| `fbdev` | Linux | 帧缓冲输出 |
+| `oss` | BSD 等 | OSS 音频输出 |
+| `pulse` | Linux | PulseAudio 播放 |
+| `sndio` | OpenBSD 等 | sndio 音频输出 |
+| `v4l2` | Linux | Video4Linux2 输出设备 |
+| `xv` | Linux/Unix | XVideo 输出 |
+
+## 常用设备详解
+
+### alsa（Linux 音频输入/输出）
+
+需安装 libasound 后启用。设备名必须是 ALSA 卡标识，语法：`hw:CARD[,DEV[,SUBDEV]]`，DEV 与 SUBDEV 可选，三参数依次为卡号、设备号、子设备号（-1 表示任意）。系统识别的卡可查 `/proc/asound/cards`。主要选项：`sample_rate`（采样率，默认 48000）、`ch_layout`（声道布局）。示例（逐字保留）：
+
+```sh
+ffmpeg -f alsa -i hw:0 alsaout.wav
+```
+
+### dshow（Windows 采集）
+
+用 mingw-w64 构建时启用，目前仅支持音视频设备。多个设备可作为独立输入分别打开，也可开在同一输入以获得更好的同步。输入名格式：`TYPE=NAME[:TYPE=NAME...]`，TYPE 为 `audio` 或 `video`。常用选项：`list_devices`（列出设备后退出）、`list_options`（列出所选设备支持的选项）、`video_size`、`framerate`、`sample_rate`、`audio_buffer_size`、`video_device_number` 等。示例：
+
+```sh
+ffmpeg -f dshow -i video="Camera"
+ffmpeg -f dshow -i video="Camera":audio="Microphone"
+```
+
+先列出设备名再照抄填写是最稳妥的用法（官方示例）：
+
+```sh
+ffmpeg -list_devices true -f dshow -i dummy
+```
+
+### gdigrab（Windows 屏幕捕获）
+
+基于 Win32 GDI 的屏幕捕获设备，可抓取整个桌面、桌面固定区域或单个窗口。输入名可用 `desktop`、`title=窗口标题` 或 `hwnd=窗口句柄`，窗口模式不受其在屏幕上的位置影响。主要选项：`draw_mouse`（是否画鼠标，默认 1）、`framerate`（默认 ntsc，即 30000/1001）、`show_region`（在屏幕上标示抓取区域）、`video_size`、`offset_x`/`offset_y`。示例：
+
+```sh
+ffmpeg -f gdigrab -framerate 6 -i desktop out.mpg
+ffmpeg -f gdigrab -framerate 6 -offset_x 10 -offset_y 20 -video_size vga -i desktop out.mpg
+ffmpeg -f gdigrab -framerate 6 -i title=Calculator out.mpg
+```
+
+### x11grab（X11 屏幕捕获）
+
+需系统安装 libxcb。抓取 X11 显示的一部分，输入名语法：`[hostname]:display_number.screen_number[+x_offset,y_offset]`，hostname 省略时为 localhost，环境变量 DISPLAY 提供默认显示名。用 `xdpyinfo` 查看显示信息。主要选项：`draw_mouse`、`follow_mouse`（跟随鼠标移动抓取区域，可设 `centered` 或像素阈值）、`show_region`、`video_size`、`grab_x`/`grab_y`、`select_region`。示例：
+
+```sh
+ffmpeg -f x11grab -framerate 25 -video_size cif -i :0.0 out.mpg
+ffmpeg -f x11grab -framerate 25 -video_size cif -i :0.0+10,20 out.mpg
+```
+
+### v4l2 / video4linux2（Linux 视频采集）
+
+`v4l2` 是 `video4linux2` 的别名。设备节点通常为 `/dev/videoN`（插入 USB 摄像头时自动生成）。若构建时启用 `--enable-libv4l2`，可用 `-use_libv4l2`。设备支持的尺寸与帧率有限，用 `-list_formats all` 查询；电视卡类设备用 `-list_standards all` 列出制式。时间戳时基为 1 微秒。示例：
+
+```sh
+ffmpeg -f video4linux2 -input_format mjpeg -i /dev/video0 out.mpeg
+```
+
+### avfoundation（macOS / iOS 采集）
+
+Apple 当前推荐的流抓取框架。输入名语法：`-i "[[VIDEO]:[AUDIO]]"`，用设备名或设备索引指定；`default` 与 `none` 两个别名分别表示默认设备与不采集该媒体类型。用 `-list_devices true` 枚举全部设备（列出索引、名称、唯一 ID 与 USB 序列号）。常用选项：`video_device_index`、`audio_device_index`、`pixel_format`、`framerate`、`capture_raw_data`。示例：
+
+```sh
+ffmpeg -f avfoundation -list_devices true -i ""
+ffmpeg -f avfoundation -i "0:0" out.avi
+ffmpeg -f avfoundation -video_device_index 2 -i ":1" out.avi
+```
+
+### decklink（Blackmagic 采集/播放）
+
+需要 Blackmagic DeckLink SDK 并以 `--extra-cflags`、`--extra-ldflags` 配置；Windows 上需先用 `widl` 处理 IDL 文件。DeckLink 对格式要求严格：像素格式用 `raw_format` 设置，帧率与尺寸先用 `-list_formats 1` 确定；音频固定 48 kHz，声道数可为 2、8 或 16（打包在单一音频轨内）。主要选项：`list_devices`（已弃用，改用 `-sources`）、`list_formats`、`format_code`（FourCC）、`mode`。示例：
+
+```sh
+ffmpeg -f decklink -list_formats 1 -i 'Intensity Pro'
+```
+
+### lavfi（滤镜图虚拟输入）
+
+从 libavfilter 滤镜图的开放输出垫读取数据，每个开放输出对应一条生成流。滤镜图经 `graph` 选项指定；视频开放输出须用 `outN` 形式标签命名，第一个未标记输出自动分配 `out0` 标签，其余必须显式指定。标签加 `+subcc` 后缀可额外输出字幕分组中的隐藏字幕包（实验性，目前仅 EIA-608/CEA-708）。示例：
+
+```sh
+ffmpeg -f lavfi -i "movie=test.ts[out0+subcc]" -map v frame%08d.png -map s -c copy -f rcwt subcc.bin
+```
+
+### fbdev（Linux 帧缓冲）
+
+Linux 帧缓冲是与硬件无关的图形抽象层，一般通过 `/dev/fb0` 访问；详见内核源码 Documentation/fb/framebuffer.txt 与 `fbset(1)`。示例：
+
+```sh
+ffmpeg -f fbdev -framerate 10 -i /dev/fb0 out.avi
+ffmpeg -f fbdev -framerate 1 -i /dev/fb0 -frames:v 1 screenshot.jpeg
+```
+
+## 其余设备速览
+
+其余输入设备细节均见官方手册对应小节：`android_camera`（安卓相机，经 JNI 调用）、`iec61883`（FireWire DV/HDV，如 `-f iec61883 -i auto`）、`jack`（JACK，客户端名由输入名指定，如 `-f jack -i ffmpeg`）、`kmsgrab`（KMS，如 `-f kmsgrab -i -`，常配 `hwdownload` 或 VA-API 缩放）、`libcdio`（音频 CD，如 `-i /dev/sr0`）、`libdc1394`（IIDC1394 相机）、`openal`（OpenAL 采集，设备名即输入名）、`oss`（如 `-i /dev/dsp`）、`pulse`（如 `-i default`）、`sndio`（如 `-i /dev/audio0`）、`vfwcap`（VfW 捕获，编号输入名）。
+
+## 参见
+
+[ffmpeg 主手册](/docs/ffmpeg/)、[格式手册](/docs/formats/)；官方页面：[https://ffmpeg.org/ffmpeg-devices.html](https://ffmpeg.org/ffmpeg-devices.html)。
+
+## 作者
+
+FFmpeg 开发者，详见 [https://git.ffmpeg.org/ffmpeg](https://git.ffmpeg.org/ffmpeg) 的 `git log`；各组件维护者列在源码树 MAINTAINERS 文件中。

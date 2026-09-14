@@ -1,0 +1,106 @@
+---
+title: ffplay 命令行工具
+description: ffplay 极简播放器使用说明：播放选项、高级选项与交互快捷键
+group: 命令行工具
+order: 3
+source: https://ffmpeg.org/ffplay.html
+---
+
+## 用法总览
+
+```text
+ffplay [options] [input_url]
+```
+
+## 简介
+
+`ffplay` 是基于 FFmpeg 库与 SDL 库的极简、可移植媒体播放器，主要用作各种 FFmpeg API 的试验台。
+
+## 选项
+
+数值后缀（`K`/`M`/`G`、`i`、`B`）、布尔选项的 `no` 前缀、`-/选项` 从文件加载参数值等通用语法为 ff\* 工具共享，见 [ffmpeg 手册的「选项」](/docs/ffmpeg/)。
+
+### 流说明符与通用选项
+
+流说明符（`stream_index`、`v`/`V`/`a`/`s`/`d`/`t`、`g:`、`p:`、`#stream_id`、`m:key`、`disp:`、`u`）与通用选项（`-L`、`-h`/`-help`、`-version`、`-formats`、`-codecs`、`-loglevel`、`-report`、`-hide_banner` 等）、AVOptions（generic/private 两类，布尔项写 `-option 0`/`-option 1`）的完整说明与 ffmpeg、ffprobe 相同，见 [ffplay 官方手册](https://ffmpeg.org/ffplay.html#Options)。
+
+### 主要选项
+
+完整列表见[官方手册](https://ffmpeg.org/ffplay.html#Main-options)：
+
+- `-x width`、`-y height`：强制显示宽度、高度。
+- `-fs`：以全屏模式启动。
+- `-an`、`-vn`、`-sn`：禁用音频、视频、字幕。
+- `-ss pos`：跳转到 pos。多数格式无法精确跳转，ffplay 会 seek 到不晚于 pos 的最近跳转点；pos 须为时间时长写法，见 [ffmpeg-utils 手册](https://ffmpeg.org/ffmpeg-utils.html#time-duration-syntax)。
+- `-t duration`：只播放该时长的音视频（同上时长语法）。
+- `-bytes`：按字节跳转。
+- `-seek_interval`：设置左右方向键跳转的自定义间隔（秒），默认 10 秒。
+- `-nodisp`：禁用图形显示。
+- `-noborder`：无边框窗口。
+- `-alwaysontop`：窗口总在最前。可用环境：X11 且 `SDL >= 2.0.5`，Windows 且 `SDL >= 2.0.6`。
+- `-volume`：启动音量。0 为静音，100 为不增减；负值按 0、超过 100 按 100 处理。
+- `-f fmt`：强制格式。
+- `-window_title title`：设置窗口标题（默认输入文件名）。
+- `-left`、`-top`：设置窗口左缘、上缘的 x、y 位置（默认居中）。
+- `-loop number`：循环播放 number 次，0 为无限。
+- `-showmode mode`：设置显示模式：`0, video` 显示视频；`1, waves` 显示音频波形；`2, rdft` 用 RDFT（(Inverse) Real Discrete Fourier Transform，实离散傅里叶变换）显示音频频谱。默认 video，无视频或无法播放时自动选 rdft。可按 `w` 键交互循环切换。
+- `-vf filtergraph`：创建指定滤镜图过滤视频流。滤镜图须为单视频输入、单视频输出，输入标签为 `in`、输出为 `out`，语法见 [ffmpeg-filters 手册](https://ffmpeg.org/ffmpeg-filters.html)。可多次指定，与显示模式一起用 `w` 键循环切换。
+- `-af filtergraph`：对输入音频应用滤镜图。用 `-filters` 可查看全部可用滤镜（含源与汇）。
+- `-i input_url`：读取输入 URL。
+
+### 高级选项
+
+完整列表见[官方手册](https://ffmpeg.org/ffplay.html#Advanced-options)：
+
+- `-stats`：打印播放统计（流时长、编解码器参数、当前位置、音视频同步漂移）。除日志级别低于 info 外默认显示；可用本选项强制显示、`-nostats` 关闭。
+- `-fast`：启用不合规范的优化。
+- `-genpts`：生成 pts。
+- `-sync type`：将主时钟设为 `audio`、`video` 或 `ext`（外部），默认 audio。主时钟用于控制音视频同步；多数播放器以音频为主，但流媒体或高质量广播等场合需要更改。主要用于调试。
+- `-ast`、`-vst`、`-sst`：按流说明符选择音频、视频、字幕流（说明符见上文）。未指定时自动选择「最佳」流：音频取已选视频流所在 program 内的最佳音频，字幕取已选视频或音频流所在 program 内的最佳字幕。
+- `-autoexit`：视频播放完毕后退出。
+- `-exitonkeydown`、`-exitonmousedown`：任意按键、任意鼠标点击即退出。
+- `-codec:media_specifier codec_name`：为 `media_specifier`（`a` 音频、`v` 视频、`s` 字幕）指定的流强制某解码器；`-acodec`、`-vcodec`、`-scodec` 分别强制音频、视频、字幕解码器。
+- `-autorotate`：按文件元数据自动旋转视频，默认开启，`-noautorotate` 关闭。
+- `-framedrop`：视频失步时丢帧。主时钟非视频时默认开启；本选项对所有主时钟启用，`-noframedrop` 关闭。
+- `-infbuf`：不限输入缓冲区大小，尽早读入尽可能多的数据。实时流默认开启（数据不及时读取可能被丢弃）；本选项对所有输入启用，`-noinfbuf` 关闭。
+- `-filter_threads nb_threads`：每条滤镜流水线的处理线程数（每条流水线建对应大小的线程池），默认 0 表示按可用 CPU 数确定。
+- `-enable_vulkan`：使用 Vulkan 渲染器替代 SDL 内置渲染器，依赖 libplacebo。
+- `-vulkan_params`：Vulkan 配置，以 `:` 分隔的 `key=value` 列表。
+- `-hwaccel`：使用硬件加速解码，启用后自动启用 Vulkan 渲染器。
+- `-video_bg pattern`：透明视频的背景图案。纯色可写[颜色语法](https://ffmpeg.org/ffmpeg-utils.html#color-syntax)支持的颜色名或颜色码；特殊关键字 `tiles` 为棋盘格样式（默认）；`none` 不做 alpha 混合、实际忽略 alpha 通道。
+
+### 播放时的交互快捷键
+
+按键字符保持原文，说明译为中文：
+
+| 按键 | 动作 |
+| --- | --- |
+| `q, ESC` | 退出 |
+| `f` | 切换全屏 |
+| `p, SPC` | 暂停 |
+| `m` | 切换静音 |
+| `9, 0` | 分别减小、增大音量 |
+| `/, *` | 分别减小、增大音量 |
+| `a` | 循环切换当前 program 的音频通道 |
+| `v` | 循环切换视频通道 |
+| `t` | 循环切换当前 program 的字幕通道 |
+| `c` | 循环切换 program |
+| `w` | 循环切换视频滤镜或显示模式 |
+| `s` | 步进一步：若尚未暂停则先暂停，前进一个视频帧后再暂停 |
+| `left/right` | 后退、前进 10 秒，`-seek_interval` 可自定义间隔 |
+| `down/up` | 后退、前进 1 分钟 |
+| `page down/page up` | 跳转上一、下一章；无章节时后退、前进 10 分钟 |
+| 右键单击（right mouse click） | 按点击位置占窗口宽度的比例跳转到文件对应百分比 |
+| 左键双击（left mouse double-click） | 切换全屏 |
+
+## 示例
+
+ffplay 官方手册页没有独立的 EXAMPLES 节，页内仅出现与其他 ff\* 工具共享的语法示例（如从文件加载滤镜脚本的 `ffmpeg -i INPUT -/filter:v filter.script OUTPUT`，已在上文「选项」节逐字保留）。实际播放用法即「用法总览」与上文各选项的组合。
+
+## 参见
+
+[ffplay-all](https://ffmpeg.org/ffplay-all.html)、[ffmpeg](/docs/ffmpeg/)、[ffprobe](/docs/ffprobe/)，以及 ffmpeg-utils、ffmpeg-scaler、ffmpeg-resampler、ffmpeg-codecs、ffmpeg-bitstream-filters、ffmpeg-formats、ffmpeg-devices、ffmpeg-protocols、ffmpeg-filters 各手册（均在 `https://ffmpeg.org/<名称>.html`）
+
+## 作者
+
+FFmpeg 开发者，作者详情见项目 [Git 历史](https://git.ffmpeg.org/ffmpeg)；各组件维护者列在源码树 `MAINTAINERS`。

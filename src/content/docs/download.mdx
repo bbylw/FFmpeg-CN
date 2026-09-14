@@ -1,0 +1,140 @@
+---
+title: 下载 FFmpeg
+description: 各平台 FFmpeg 安装包与源码获取方式、Git 仓库、GPG 签名验证与当前发行版一览。
+group: 开始
+order: 2
+source: https://ffmpeg.org/download.html
+---
+
+FFmpeg 官方只提供源码。如果你想要已经编译好的可执行文件，可以在下面找到各平台的第三方构建入口。当前最新源码包：[ffmpeg-9.0.1.tar.xz](https://ffmpeg.org/releases/ffmpeg-9.0.1.tar.xz)。
+
+## 获取软件包与可执行文件
+
+### Linux
+
+软件包：
+
+| 发行版 | 说明 | 链接 |
+| --- | --- | --- |
+| Debian | Stable-Backports、Testing、Unstable 的官方软件包 | [tracker.debian.org](https://tracker.debian.org/pkg/ffmpeg) |
+| Debian | deb-multimedia 提供的 Oldstable、Stable、Testing、Unstable 软件包 | [deb-multimedia.org](https://www.deb-multimedia.org/) |
+| Ubuntu | 官方软件包 | [launchpad.net](https://launchpad.net/ubuntu/+source/ffmpeg) |
+| Fedora 与 Red Hat Enterprise Linux | 软件包 | [rpmfusion.org](https://rpmfusion.org/) |
+
+静态构建（Static Builds）：64 位静态与共享构建，见 [BtbN/FFmpeg-Builds](https://github.com/BtbN/FFmpeg-Builds/releases)。
+
+### Windows
+
+EXE 可执行文件：
+
+* [gyan.dev 提供的 Windows 构建](https://www.gyan.dev/ffmpeg/builds/)
+* [BtbN 提供的 Windows 构建](https://github.com/BtbN/FFmpeg-Builds/releases)
+
+### macOS
+
+* [evermeet.cx](https://evermeet.cx/ffmpeg/) 提供的 macOS 64 位静态构建
+
+以上均为第三方厂商构建，由各自的维护者负责。如果觉得 FFmpeg 有用，也欢迎通过[捐赠](https://ffmpeg.org/donations.html)支持项目。
+
+## 获取源码
+
+* 快照下载：[ffmpeg-snapshot.tar.bz2](https://ffmpeg.org/releases/ffmpeg-snapshot.tar.bz2)（另有 [git 快照](https://ffmpeg.org/releases/ffmpeg-snapshot-git.tar.bz2)）
+* PGP 签名密钥：[ffmpeg-devel.asc](https://ffmpeg.org/ffmpeg-devel.asc)
+* 在线浏览：[git.ffmpeg.org/gitweb/ffmpeg.git](https://git.ffmpeg.org/gitweb/ffmpeg.git)
+
+你可以通过 [Git](https://git-scm.com/) 获取源码，使用命令：
+
+```bash
+git clone https://git.ffmpeg.org/ffmpeg.git ffmpeg
+```
+
+无法访问 Git，或者想加快克隆速度、减少带宽占用？可以改用上面的快照下载或 Browse 在线浏览。
+
+FFmpeg 一直是一个高度实验性、由开发者驱动的项目。它是许多多媒体项目的关键组件，并且不断有新功能加入。开发分支的快照在 99% 的情况下都工作得很好，所以大家也放心使用它们。
+
+## Git 仓库
+
+FFmpeg 使用 [Git](https://git-scm.com/) 开发，因此还存在许多来自个人开发者与开发者团体的仓库。
+
+| Clone URL | 说明 |
+| --- | --- |
+| [https://git.ffmpeg.org/ffmpeg.git](https://git.ffmpeg.org/ffmpeg.git) | FFmpeg 主 Git 仓库 |
+| [https://git.ffmpeg.org/ffmpeg-web](https://git.ffmpeg.org/ffmpeg-web) | ffmpeg.org 官方网站主仓库 |
+| [https://git.ffmpeg.org/fateserver](https://git.ffmpeg.org/fateserver) | [fate.ffmpeg.org](http://fate.ffmpeg.org) 服务器软件仓库 |
+
+镜像（Mirrors）：
+
+| Clone URL | 说明 |
+| --- | --- |
+| [https://github.com/FFmpeg/FFmpeg](https://github.com/FFmpeg/FFmpeg) | 主仓库的镜像 |
+| [https://github.com/FFmpeg/web](https://github.com/FFmpeg/web) | 网站仓库的镜像 |
+| [https://github.com/FFmpeg/fateserver](https://github.com/FFmpeg/fateserver) | FATE 服务器仓库的镜像 |
+
+## 发行版验证
+
+所有 FFmpeg 发行版都使用[官方公钥](https://ffmpeg.org/ffmpeg-devel.asc)做了密码学签名，应当验证其真实性：
+
+```text
+pub   rsa2048 2011-04-26 [SC]
+    FCF986EA15E6E293A5644F10B4322F04D67658D8
+uid           [  full  ] FFmpeg release signing key <ffmpeg-devel@ffmpeg.org>
+sub   rsa2048 2011-04-26 [E]
+```
+
+验证某个发行版的步骤：
+
+1. 把官方公钥导入本地密钥环：
+
+   ```bash
+   $ curl https://ffmpeg.org/ffmpeg-devel.asc | gpg --import
+   ```
+
+2. 下载发行版 tarball 及其对应的签名（`.asc` 文件）。
+
+3. 验证签名：
+
+   ```bash
+   $ gpg --verify ffmpeg-4.3.2.tar.xz.asc ffmpeg-4.3.2.tar.xz
+   gpg: Signature made Sun 21 Feb 2021 06:35:15 AEST
+   gpg:                using RSA key FCF986EA15E6E293A5644F10B4322F04D67658D8
+   gpg:                issuer "ffmpeg-devel@ffmpeg.org"
+   gpg: Good signature from "FFmpeg release signing key <ffmpeg-devel@ffmpeg.org>" [full]
+   ```
+
+可选地，你还可以核对 git 仓库与 tarball 是否一致：两者唯一的差异应该是 tarball 中没有 `.git*` 文件，并且包含一个记录版本号的 `VERSION` 文件。git 标签应当由 [EDDSA 密钥 DD1EC9E8DE085C629B3E1846B18E8928B3948D64](https://ffmpeg.org/git-tag-key.asc) 签名。
+
+## 发行版
+
+FFmpeg 项目大约每 6 个月发布一次新的大版本。在大版本之间还会发布点版本（point release），只加入重要的缺陷修复而不引入新功能。注意：这些发行版面向发行版打包者和系统集成人员。打算自己从源码编译的用户被强烈建议考虑使用开发分支（见上文），这是 FFmpeg 开发者实际工作的唯一版本。发行分支只是从开发分支中挑选部分变更，因此开发分支能获得数量更多、速度也更快的缺陷修复、新功能与安全补丁。
+
+下表汇总官方下载页当前列出的各维护分支（数据以 download 页为准）：
+
+| 发行分支 | 代号 | 最新点版本 | 发布日期 | 分支切自 master |
+| --- | --- | --- | --- | --- |
+| 9.0 | "Lei" | 9.0.1 | 2026-08-12 | 2026-06-26 |
+| 8.1 | "Hoare" | 8.1.2 | 2026-06-17 | 2026-03-08 |
+| 8.0 | "Huffman" | 8.0.3 | 2026-06-18 | 2025-08-09 |
+| 7.1 | "Péter" | 7.1.5 | 2026-06-20 | 2024-09-24 |
+| 6.1 | "Heaviside" | 6.1.6 | 2026-06-20 | 2023-10-29 |
+| 5.1 | "Riemann" | 5.1.10 | 2026-06-21 | 2022-07-13 |
+| 4.4 | "Rao" | 4.4.8 | 2026-06-21 | 2021-04-08 |
+
+各 minor 版本的首发日期（官方新闻页）：8.1 "Hoare" 发布于 2026-03-16，8.0 "Huffman" 发布于 2025-08-22，7.1 "Péter" 发布于 2024-09-30，6.1 "Heaviside" 发布于 2023-11-10，5.1 "Riemann" 发布于 2022-07-22，4.4 "Rao" 发布于 2021-04-08。
+
+以最新的 9.0.1 "Lei" 为例，其包含的库版本为：
+
+```text
+libavutil      61.  1.100
+libavcodec     63.  1.100
+libavformat    63.  1.100
+libavdevice    63.  1.100
+libavfilter    12.  1.100
+libswscale     10.  1.100
+libswresample   7.  1.100
+```
+
+每个分支的 tarball 都提供 xz、bzip2、gzip 三种压缩格式，附 PGP 签名（例如 `https://ffmpeg.org/releases/ffmpeg-9.0.1.tar.xz` 与 `.tar.xz.asc`）。各版本的 Changelog 可在 gitweb 查看（如 [n9.0.1 shortlog](https://git.ffmpeg.org/gitweb/ffmpeg.git/shortlog/n9.0.1)），8.1.2、8.0.3、7.1.5、6.1.6、5.1.10、4.4.8 等分支的下载与 Release Notes 入口见 [官方下载页](https://ffmpeg.org/download.html)，完整列表不再在此重复。
+
+### 旧版本（停止维护的分支）
+
+更早的版本保存在官方下载页的 [Old Releases](https://ffmpeg.org/olddownload.html) 页面。发行版通常在最后一个[下游发行版](https://trac.ffmpeg.org/wiki/Downstreams)（downstream）停止支持后被移入该页，也就是说上表之外的分支已不再获得官方更新。

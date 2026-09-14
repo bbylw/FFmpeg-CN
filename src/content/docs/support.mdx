@@ -1,0 +1,99 @@
+---
+title: 支持与社区
+description: FFmpeg 捐赠途径、雇佣开发者、联系方式与许可证法律要点汇总。
+group: 资源
+order: 5
+source: https://ffmpeg.org/donations.html
+---
+
+本页合并官方捐赠页、SPI 页、雇佣开发者页、联系页与法律页的要点。
+
+## 向 FFmpeg 捐赠
+
+捐款用于支付开发相关开销（设备与服务器维护费等）、资助 bug 修复与功能开发、支持项目参加或组织相关会议活动，以及内部开发、教育项目与一切推广 FFmpeg 的活动。途径如下：
+
+| 方式 | 说明 | 入口 |
+| --- | --- | --- |
+| PayPal | 经由 SPI（Software in the Public Interest）代收 | [SPI FFmpeg 项目页](https://www.spi-inc.org/projects/ffmpeg/) |
+| 信用卡 | Visa、MasterCard 或 Discovery | [Click&Pledge](https://co.clickandpledge.com/advanced/default.aspx?wid=56226) |
+| 支票或汇票 | 仅限美元，走 SPI 渠道，务必注明捐给 FFmpeg | [SPI 捐款页](https://www.spi-inc.org/donations/) |
+| GitHub Sponsors | 直接赞助项目 | [github.com/sponsors/FFmpeg](https://github.com/sponsors/FFmpeg) |
+
+### 捐给个人开发者
+
+此栏捐款作为个人馈赠直接给到开发者本人，与项目公共资金无关，可完全由其自行支配，不附带任何特定用途、交付物或服务。目前列出的是负责发行版与安全修复的 Michael Niedermayer：可通过 [PayPal](https://paypal.me/niedermayermichael) 捐赠，也接受以太坊（0x688233B52Df5fcf563c8181b576728619567DFbb）与比特币（bc1q55est04pzyvf0yezf2h7a98m72aunrxdt24jt8）地址转账。
+
+### 关于 SPI
+
+[SPI](https://www.spi-inc.org/) 是纽约州注册的非营利法人，为开发开源软件与硬件的组织提供财务赞助（fiscal sponsorship）。FFmpeg 是 SPI 关联项目，捐款可由 SPI 代为收取与处理（[关联详情](https://www.spi-inc.org/projects/ffmpeg/)）。
+
+- **报销与退款**：给 ffmpeg-devel 发邮件，主题加 `[REFUND-REQUEST]` 标签并简述事由，正文写明金额与资金用途。提交申请时不必（也不建议）附收据，但获批后向 SPI 提交[报销表单](https://www.spi-inc.org/treasurer/reimbursement-form/)时通常要用到。
+- **SPI 能支付什么**：凡是符合 501(c)(3) 非营利规则、且在自由开源软件使命范围内的用途均可，实践中最常见的是差旅与硬件。其他开销或赞助建议先在 ffmpeg-devel 讨论，社区达成一致后由当期 FFmpeg 联络人向 SPI 走审批。
+- **资助活跃开发**：付钱给开发者需要大量额外文书但不被禁止，SPI 需要一份描述工作内容的合同，并核实承包者身份（例如是否为美国人、是否真是 contractor 而非雇员）。SPI 目前无法处理雇佣关系（涉及医保、代扣税等）。合同模板视承包者所在国而定（美国、澳大利亚、法国等可直接提供，否则需请律师起草）；SPI 有两种模式：转让所有权的 Master Service Agreement 与仅授予许可的 Continued Service Agreement，开发资助场景下部分项目会更愿意让承包者保留所有权。
+- **给 SPI 开票**：为 SPI 或 STF（Sovereign Tech Fund）工作后需要收款时，给 SPI 财务发邮件开 ticket，并抄送 jonatas、kassia、stefano 及你认为必要的人，附上验证工作所需的报告。核实批准后进入付款队列，预计最长一个月到账。
+
+## 雇佣开发者
+
+使用（或计划使用）FFmpeg 的企业，常常需要原作者级别的专家帮忙定位问题、修 bug 或加功能。官方咨询页列出了可被雇佣或做咨询的 FFmpeg 开发者，项目方强烈建议考虑名单上的人：名单中每位开发者都在 FFmpeg 中维护着代码，这本身就是能力的证明；雇佣他们同时也在（间接）支持 FFmpeg 的开发。如果你不知道具体该找谁，或名单上的专长都不匹配，可以给 [ffmpeg-devel](https://lists.ffmpeg.org/mailman/listinfo/ffmpeg-devel/) 发邮件，触达更广的人群。
+
+| 开发者 | 所在地 | 专长方向 | 联系 |
+| --- | --- | --- | --- |
+| Baptiste Coudurier | 美国洛杉矶（2005 年参与，2006 年起任维护者） | 广播级编解码器（ProRes、DNxHD、IMX/D-10、AVC-Intra）、MXF/GXF/MOV 格式与 Avid/FCP/隔行/时间码/元数据用法 | baptiste.coudurier@gmail.com |
+| Carl Eugen Hoyos | 奥地利（2007 年参与，同年任维护者） | 软件许可问题，现任 FFmpeg bug 跟踪系统维护者 | ce at hoyos dot ws |
+| Michael Niedermayer | 奥地利维也纳 | 视频编码各领域、安全、bug 修复、x86 汇编 | michael.ffwork@niedermayer.cc |
+| Thilo Borgmann | 德国柏林（2009 年参与，2010 年起任维护者） | 解码器、元数据、输入设备、滤镜 | thilo.borgmann@mail.de |
+| Tomas Härdin | 瑞典于默奥（2009 年参与，2010 年起任维护者） | 广播格式（主要是 MXF 与 AAF），也接一般性工作 | consulting at haerdin dot se，另见[其咨询页](https://www.haerdin.se/pages/consulting.html) |
+| Steven Liu | 中国北京（2010 年参与，2016 年起任维护者） | 网络协议与音视频流媒体全域：HTTP、RTMP、HLS、MP4、FLV、MPEGTS、libavformat、ff* 工具易用性 | lq@chinaffmpeg.org |
+| Gyan Doshi | 印度孟买（2018 年起任维护者） | ff* 工具使用与故障排查 | ffmpeg at gyani dot pro |
+
+## 联系方式
+
+### 邮件列表
+
+发帖请遵守网络礼仪：尤其避免顶引（top-posting）和话题劫持（在原帖里回复并换成完全无关的主题），并阅读[行为准则](https://ffmpeg.org/community.html#Code-of-Conduct)。建议把邮件客户端设为约 70 字符换行；小的附件不要压缩；避免超长签名和自称保密的公司免责声明；补丁附件的 MIME 类型应为 `text/x-diff`、`text/x-patch` 或至少 `text/plain`。发补丁请用 `git format-patch` / `git send-email`（见 [git-howto](https://ffmpeg.org/git-howto.html)），并先读[Mailing List FAQ](https://ffmpeg.org/mailing-list-faq.html)。
+
+| 列表 | 用途 | 订阅 |
+| --- | --- | --- |
+| ffmpeg-devel | FFmpeg 本身的开发讨论，补丁投到这里；务必订阅以便收到评审意见 | [链接](https://lists.ffmpeg.org/mailman/listinfo/ffmpeg-devel/) |
+| ffmpeg-user | 常规用户问题与 ffmpeg、ffplay、ffprobe 等命令行工具讨论 | [链接](https://lists.ffmpeg.org/mailman/listinfo/ffmpeg-user/) |
+| libav-user | 使用 FFmpeg 库与 API 的问题 | [链接](https://lists.ffmpeg.org/mailman/listinfo/libav-user/) |
+| ffmpeg-cvslog | 所有源码变更日志，不讨论 | [链接](https://lists.ffmpeg.org/mailman/listinfo/ffmpeg-cvslog/) |
+| ffmpeg-trac | bug 跟踪系统的变更日志，不讨论 | [链接](https://lists.ffmpeg.org/mailman/listinfo/ffmpeg-trac/) |
+
+历史讨论先去[归档](https://lists.ffmpeg.org/pipermail/ffmpeg-user/)（各列表均有 pipermail 归档，另有[新一代归档站](https://lists.ffmpeg.org/lore/)）搜索，很可能你的问题早有人问过。
+
+### IRC
+
+FFmpeg 在 [Libera.Chat](https://libera.chat/) 有两个官方频道，均开放且无主动管理；维护者有 op 权限，有补丁合入的贡献者有 voice 权限。网页客户端：[web.libera.chat 加入 #ffmpeg 与 #ffmpeg-devel](https://web.libera.chat/?channels=#ffmpeg,#ffmpeg-devel)。
+
+- `#ffmpeg`：用户支持与类似 ffmpeg-user 列表的一般问题。
+- `#ffmpeg-devel`：严格限于 FFmpeg 自身的开发，使用 FFmpeg 库开发其他软件属于 off-topic。
+
+频道公开留档，2023-10-11 之后的记录见 [#ffmpeg](https://libera.irclog.whitequark.org/ffmpeg) 与 [#ffmpeg-devel](https://libera.irclog.whitequark.org/ffmpeg-devel)，更早记录在 [ffmpeg-devel-irc](https://lists.ffmpeg.org/pipermail/ffmpeg-devel-irc/)。
+
+### 论坛
+
+FFmpeg 没有官方论坛，官网只收集第三方论坛链接（想被收录可发 ffmpeg-devel）。最成规模的是 [SuperUser 上的 FFmpeg 标签](https://superuser.com/questions/tagged/ffmpeg)。论坛得不到回复时试试官方邮件列表或 IRC；反过来，如果你在论坛或列表上看到自己会答的问题，请顺手回复：社区支持占大头，读论坛的官方开发者很少。
+
+## 许可证与法律要点
+
+以下为官方 [legal 页](https://ffmpeg.org/legal.html)摘要，不构成法律建议。
+
+### 许可框架
+
+FFmpeg 以 LGPL 2.1 或更新版本授权，但包含若干可选部分与优化以 GPL 2 或更新版本覆盖：一旦使用这些部分，GPL 将作用于整个 FFmpeg。FFmpeg 不接受任何其他授权条款，尤其不存在专有/商业许可，付费也不行。商标归项目创始人 Fabrice Bellard 所有。
+
+### LGPL 合规检查清单（动态链接使用 FFmpeg 库时）
+
+这是官方认为最省事的合规路径（并非唯一方式）：
+
+- 编译 FFmpeg 时不加 `--enable-gpl` 与 `--enable-nonfree`，并确认程序没有间接使用 GPL 库（特别是 libx264）。
+- 对 FFmpeg 库采用动态链接（Windows 即链接 dll）。
+- 分发 FFmpeg 源码，无论是否修改过；确保源码与你分发的库二进制完全对应；把修改导出为 `changes.diff`（在源码根目录执行 `git diff > changes.diff`）；用一个文本文件说明构建方式（例如完整的 configure 命令行）；以 tar 包或 zip 形式分发，并托管在与二进制相同的站点上。
+- 在每个提供你应用下载的网页加上类似声明与源码链接："This software uses code of FFmpeg licensed under the LGPLv2.1 and its source can be downloaded here"；在程序关于框中写明使用 FFmpeg 项目的 LGPLv2.1 库；在 EULA 中同样写明，若 EULA 声称代码所有权须明确排除 FFmpeg 并指明真正权利人，删除任何禁止逆向条款，所有译本同步修改。
+- 不要拼错 FFmpeg（两个大写 F 加小写 mpeg）；不要把 dll 改成晦涩名字，加前后缀可以（`avcodec-MyProg.dll` 可以，`MyProgDec.dll` 不行）。
+- 若你编入的还有其他 LGPL 外部库（如 LAME），对它们重复以上检查。
+
+### 专利问题
+
+官方 mini-FAQ 的要点：开发者不是律师且从未读专利写实现，所以无法回答"FFmpeg 是否使用专利算法"，谁也不能斩钉截铁说没有；已知的是 H.264、MPEG-4 等标准文本均提示一致实现可能涉及某些辖区的专利。专利法各地差异巨大，许多国家不承认算法专利，用专利排除特定平台或软件也可能违反反垄断法，是否安全取决于你的辖区。个人自用几乎无需担心；把 FFmpeg 整体嵌入商业产品则要当心：已有公司因此被专利持有人追索许可费，其中 MPEG LA 对 MPEG 相关技术的收费尤其勤勉。

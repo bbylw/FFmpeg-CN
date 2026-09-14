@@ -1,0 +1,242 @@
+---
+title: 封装格式
+description: FFmpeg 解流器与混流器（容器格式）手册中文全译
+group: 组件手册
+order: 2
+source: https://ffmpeg.org/ffmpeg-formats.html
+---
+
+## 说明
+
+本文档描述 libavformat 库提供的格式（混流器 muxer 与解流器 demuxer）：解流器读取特定类型文件中的多媒体流，混流器负责写入。构建时默认全部启用，可 `--list-demuxers`/`--list-muxers` 查看、`--enable-demuxer=X` 等增删；工具的 `-formats` 显示当前构建的合并列表。
+
+## 格式选项
+
+libavformat 提供可设置于所有混流器与解流器的通用全局选项，另有各组件专属的私有选项；设置方式为 `-选项 值` 或 `AVFormatContext`/`libavutil/opt.h` API。常用通用选项（完整列表见官方手册 [https://ffmpeg.org/ffmpeg-formats.html](https://ffmpeg.org/ffmpeg-formats.html)）：
+
+| 选项 | 说明 | 默认值 |
+| --- | --- | --- |
+| `probesize` | 探测流信息分析的数据字节数，越大越准但延迟升高，不小于 32 | 5000000 |
+| `fflags` | 如 `genpts`（补生成 PTS）、`discardcorrupt`、`fastseek` | 无 |
+| `analyzeduration` / `max_probe_packets` | 探测时长（微秒）/ 最大探测包数 | 无 |
+| `rtbufsize` | 实时设备输入的 RingBuffer 上限 | 无 |
+| `max_delay` | 最大写入时延（微秒） | 无 |
+| `flush_packets` | 每包后刷新 I/O，0 可显著加速普通文件写 | 1 |
+
+格式流限定符可按属性选取流，语义由 `avformat_match_stream_specifier()` 定义，详见官方 [Stream specifiers](https://ffmpeg.org/ffmpeg-formats.html#Format-stream-specifiers-1) 一节。
+
+## 格式总表
+
+下表按官方手册条目整理，支持列取 `读`/`写`/`读写`（常见双向容器按实际能力标注）。完整清单以 `ffmpeg -formats` 为准。
+
+### 解流器（读）
+
+| 名称 | 支持 | 用途 |
+| --- | --- | --- |
+| `aa` | 读 | Audible 2/3/4 有声书 |
+| `aac` | 读 | AAC 的 ADTS 裸流（含 ID3/APE 标签） |
+| `apng` | 读写 | 动画 PNG |
+| `asf` | 读写 | ASF/WMV/WMA 家族 |
+| `concat` | 读 | 列表文件虚拟拼接（见详解） |
+| `dash` | 读写 | DASH 清单输入 |
+| `dvdvideo` | 读 | DVD-Video（libdvdnav） |
+| `ea` | 读 | Electronic Arts 游戏多媒体 |
+| `imf` | 读 | IMF 互操作主格式 |
+| `flv`, `live_flv`, `kux` | 读写 | Flash Video、RTMP 流与优酷变体 |
+| `gif` | 读写 | 动画 GIF |
+| `hls` | 读写 | HLS 播放列表输入 |
+| `image2` | 读写 | 单图或序列图输入 |
+| `libgme` | 读 | 游戏音乐模拟库（GYM/HES 等） |
+| `libmodplug` | 读 | MOD 模块音乐 |
+| `libopenmpt` | 读 | libopenmpt 模块音乐 |
+| `mcc` | 读写 | MacCaption VANC/字幕文件 |
+| `mov, mp4, 3gp` | 读写 | QuickTime 与 ISO-BMFF 家族（见详解） |
+| `mpegts` | 读写 | MPEG-2 传输流（见详解） |
+| `mpjpeg` | 读 | multipart MIME 封装的 MJPEG |
+| `rawvideo` | 读写 | 裸视频帧（需指定尺寸与格式） |
+| `rcwt` | 读写 | ccextractor 的 608/708 字幕 |
+| `sbg` | 读 | SBaGen 双耳音频脚本 |
+| `tedcaptions` | 读 | TED 演讲 JSON 字幕 |
+| `vapoursynth` | 读 | VapourSynth 脚本 |
+| `w64` | 读写 | Sony Wave64 音频 |
+| `wav` | 读写 | RIFF WAVE（见详解） |
+| `webp` | 读 | 动画 WebP |
+
+### 裸流（raw）混流器（写）
+
+单流裸码流，不存时间戳与元数据，扩展名默认同名：
+
+| 名称 | 媒体类型 | 用途 |
+| --- | --- | --- |
+| `ac3`, `eac3`, `ac4`, `dts`, `mlp`, `truehd`, `adx`, `aptx`, `aptx_hd`, `codec2raw`, `dfpwm`, `g722`, `g723_1`, `g726`, `g726le`, `gsm`, `mp2`, `sbc` | 音频裸码流（与同名编解码器对应） |
+| `h264`, `hevc`, `obu`, `dirac`, `dnxhd`, `vc1`, `mjpeg`, `m4v`, `mpeg1video`, `mpeg2video`, `h261`, `h263`, `avs2`, `avs3`, `cavsvideo`, `evc` | 视频裸码流；h264/hevc 自动转 Annex B |
+| `rawvideo`, `data` | 裸像素帧（yuv/rgb）；任意单流数据 |
+
+### 裸 PCM 混流器（写）
+
+`alaw`、`mulaw` 与 `s8`/`s16be`/`s16le`/`s24be`/`s24le`/`s32be`/`s32le`、`u8`/`u16be`/`u16le`/`u24be`/`u24le`/`u32be`/`u32le`、`f32be`/`f32le`/`f64be`/`f64le`、`vidc`：按符号、位深、端序区分的 PCM 裸音频，`-f` 指定；FFmpeg 也能以同名解流器读取。
+
+### 其余混流器（写）
+
+| 名称 | 用途 |
+| --- | --- |
+| `a64`, `alp`, `amv`, `apm`, `argo_asf`, `argo_cvg`, `avm2`, `film_cpk`, `kvag`, `mmf`, `pdv`, `ast` | 游戏/掌机/Flash 小众格式 |
+| `aea`, `amr`, `au`, `aiff`, `ircam`, `ilbc`, `lc3`, `daud`, `bit`, `codec2` | 各类音频容器/裸格式 |
+| `ass`, `jacosub`, `microdvd`, `lrc` | 字幕/歌词 |
+| `adts` | AAC ADTS 流 |
+| `avi` | AVI（见详解） |
+| `avif`, `fits`, `filmstrip`, `ico`, `iterm2`, `image2pipe`, `ivf` | 图像与管道输出 |
+| `asf_stream` | 面向流媒体的 ASF |
+| `caf`, `flac`, `gxf`, `dv`, `matroska` | 其余容器（matroska 见详解） |
+| `chromaprint` | 音频指纹（acoustid） |
+| `crc`, `framecrc`, `hash`, `framehash`, `framemd5`, `md5`, `streamhash` | CRC/哈希校验测试格式 |
+| `ffmetadata`, `null`, `fifo`, `tee` | 元数据导出、丢弃、中转、多路 |
+| `hds`, `dash`, `hls`, `segment`, `stream_segment`, `ssegment`, `smoothstreaming`, `webm_chunk`, `webm_dash_manifest`, `whip` | 流媒体见详解 |
+| `iamf` | 沉浸式音频 IAMF |
+| `mxf`, `mxf_d10`, `mxf_opatom` | 广播级 MXF 及变体 |
+| `nut`, `ogg`, `mp3` | NUT、Ogg 与 MP3（见详解） |
+
+### MPEG 节目流混流器（写）
+
+`mpeg`（MPEG-1 节目流，mpg）、`vcd`、`svcd`、`dvd`、`vob`：MPEG-1/2 节目流家族，对应 VCD/SVCD/DVD 光盘轨道。
+
+## 协议总表
+
+协议由 `libavformat` 的 avio 层提供（本表据官方协议手册整理，完整选项见 [https://ffmpeg.org/ffmpeg-protocols.html](https://ffmpeg.org/ffmpeg-protocols.html)）：
+
+| 名称 | 用途 |
+| --- | --- |
+| `file`, `pipe`, `fd` | 本地文件、管道、文件描述符 |
+| `cache` / `shared` | 输入流缓存 / 跨进程共享缓存 |
+| `async` | 输入异步填充包装 |
+| `concat` / `concatf` | 物理拼接多资源 |
+| `crypto` | AES 解密读取 |
+| `data` | data: URI 内联数据 |
+| `ftp` | FTP |
+| `gopher` / `gophers` | Gopher（含 TLS） |
+| `http` / `https` | HTTP/HTTPS |
+| `libcurl` | 经 libcurl 的 HTTP/HTTPS |
+| `libsmbclient` | CIFS/SMB 共享 |
+| `libssh` | 经 libssh 的 SFTP |
+| `mmst` / `mmsh` | MMS over TCP/HTTP |
+| `prompeg` | Pro-MPEG FEC |
+| `rist` | RIST 可靠流 |
+| `rtmp` `rtmpe` `rtmps` `rtmpt` `rtmpte` `rtmpts` | RTMP 家族（原生或 librtmp） |
+| `rtp` / `rtsp` / `sap` / `sdp` | RTP、RTSP 及会话通告 |
+| `md5` | MD5 输出 |
+| `sctp` | SCTP |
+| `srt` / `srtp` | SRT 加密可靠传输 / SRTP |
+| `subfile` / `tee` | 文件虚拟子片段；多路输出（`|` 分隔） |
+| `tcp` / `udp` / `unix` | 裸 socket 收发 |
+| `tls` / `dtls` | TLS / DTLS |
+| `amqp`, `zmq`, `ipfs`, `Icecast`, `bluray` | AMQP、ZeroMQ、IPFS、Icecast 推流、蓝光 |
+
+## 常用容器详解
+
+### MP4 / MOV / QuickTime 家族
+
+解流器 `mov/mp4/3gp` 读取 QuickTime 与 ISO-BMFF（ISO/IEC 14496-12、JPEG 2000 Part 12）家族，注册扩展名：mov、mp4、m4a、3gp、3g2、mj2、psp、m4b、ism/ismv/isma、f4v。安全相关选项：`enable_drefs`（加载外部轨道，默认关闭）、`use_absolute_path`（绝对路径外部轨道，默认关闭）、`seek_streams_individually` 等；Audible AAX 加密文件可给出 4 字节激活密钥解密。
+
+混流器家族：`mov`、`mp4`、`3gp`、`3g2`、`f4v`、`ipod`、`ismv`（Smooth Streaming）、`psp`，均基于 ISO-BMFF box 结构。常用选项：`brand` 覆盖主品牌、`movflags` 开关集、`moov_size` 预留头部空间、`encryption_scheme cenc-aes-ctr` 加密等。
+
+`-movflags` 最重要用法：`+faststart` 把 moov 移到文件头便于边下边播（等价于事后 qt-faststart）；另有 `default_base_moof`、`delay_moov`、`disable_chpl`（关 Nero 章节）等。
+
+示例（官方）：实时向 IIS 推 Smooth Streaming：
+
+```sh
+ffmpeg -re <normal input/transcoding options> -movflags isml+frag_keyframe -f ismv http://server/publishingpoint.isml/Streams(Encoder1)
+```
+
+### 碎片化 ISO-BMFF（fMP4）
+
+`mov`、`mp4`、`ismv` 支持碎片化：普通 MOV/MP4 把全部包元数据集中存放（通常在文件尾）；碎片文件则把包与各自元数据分存在若干 fragment 中。优点是写入中断文件仍可解码（普通 MP4 未正常收尾则不可用），且写长文件时不必在内存中记住每个包；代价是兼容性稍差。通过下列任一选项开启：`frag_duration`（按微秒切）、`frag_size`（按字节切）、`min_frag_duration`（下限，须同时满足）、`-movflags +frag_keyframe`（遇关键帧切）、`+frag_custom`。`movflags` 还有 `cmaf`（CMAF 兼容输出）、`dash`（DASH 兼容分片 MP4）等模式。
+
+### Matroska / WebM
+
+`matroska` 混流器同时实现 Matroska 与 WebM 规范。元数据：`title`（单轨标题，附件映射为 FileDescription）、`language`（ISO-639-2/B，如 `fre` 或 `fre-ca`）、`stereo_mode`（3D 布局，如 `left_right`、`anaglyph_cyan_red`）。官方示例（3D WebM）：
+
+```sh
+ffmpeg -i sample_left_right_clip.mpg -an -c:v libvpx -metadata stereo_mode=left_right -y stereo_clip.webm
+```
+
+常用选项：`reserve_index_space`（在头部预留簇索引/clues 空间，便于流式播放时文件头即带 seek 索引）。WebM 直播分块用 `webm_chunk`，清单配合 `webm_dash_manifest`。
+
+### AVI
+
+`avi` 为微软专有格式（后经 Open DML 规范化），播放器差异大，可能需调选项保证兼容：`flipped_raw_rgb`（自下而上裸 RGB 存正高度，需先自行 vflip）、`reserve_index_space`、`write_channel_scores` 等。
+
+### MPEG-TS
+
+解流器：`resync_size`（重同步上限，默认 65536）、`skip_unknown_pmt`、`fix_teletext_pts`（用 PCR 覆写字幕时间戳，默认 1）、`scan_all_pmts`（是否扫描合并全部 PMT）、`ts_packetsize`（只读，探测到的包长）。
+
+混流器实现 ISO 13818-1 与部分 ETSI EN 300 468，识别元数据 `service_provider`（默认 FFmpeg）与 `service_name`（默认 Service01）；DVB 选项：`mpegts_transport_stream_id`、`mpegts_original_network_id`、`mpegts_service_id`、`mpegts_service_type`、`mpegts_pmt_start_pid`（默认 0x1000）等，全集见[官方手册](https://ffmpeg.org/ffmpeg-formats.html#mpegts-1)。
+
+### HLS 与 DASH
+
+`hls` 混流器按 Apple HLS 规范把 MPEG-TS（或 fMP4）切段并生成播放列表；输出文件名即 m3u8 名，默认按序号生成 `out0.ts` 等分段。编码时须闭合 GOP 且 GOP 大小与分段时长匹配。示例（官方）：
+
+```sh
+ffmpeg -i in.mkv -c:v h264 -flags +cgop -g 30 -hls_time 1 out.m3u8
+```
+
+常用选项：`hls_time`（目标分段时长，默认 2 秒）、`hls_init_time`、`hls_list_size`、`hls_flags`（`delete_segments`、`append_list` 等）、`hls_segment_type mpegts|fmp4`（fMP4 分段，init 名用 `hls_fmp4_init_filename`）、`hls_segment_filename`、多码率变体 `var_stream_map`、加密 `hls_key_info_file`。加密需先用脚本生成 key 与 keyinfo 文件，再指定 `-hls_key_info_file file.keyinfo`（亦可用 `hls_enc`、`hls_enc_key`、`hls_enc_key_url` 直接控制）。
+
+解流器 `hls` 把所有变体流呈现为 AVStream，`variant_bitrate` 元数据给出所属变体码率；选项 `live_start_index`、`prefer_x_start`。`dash` 混流器按 ISO/IEC 23009-1 生成 MPD 与分段，段名支持 `$RepresentationID$`、`$Number$`、`$Bandwidth$`、`$Time$` 与 ffmpeg 专有的 `$ext$`；`adaptation_sets` 把流归入适配集。实时 DASH 示例（官方，两档码率）：
+
+```sh
+ffmpeg -re -i <input> -map 0 -map 0 -c:a libfdk_aac -c:v libx264 \
+  -b:v:0 800k -profile:v:0 main \
+  -b:v:1 300k -s:v:1 320x170 -profile:v:1 baseline -ar:a:1 22050 \
+  -bf 1 -keyint_min 120 -g 120 -sc_threshold 0 -b_strategy 0 \
+  -use_timeline 1 -use_template 1 -window_size 5 \
+  -adaptation_sets "id=0,streams=v id=1,streams=a" \
+  -f dash /path/to/out.mpd
+```
+
+`segment/stream_segment/ssegment` 是更通用的分段器（`segment_time`、`segment_list`、`segment_format_options`，配合 `-strftime` 亦可实现 HLS）；`hds`、`smoothstreaming`、`whip`（WebRTC 亚秒级推流）为其余流媒体形态。选项全集见官方：[https://ffmpeg.org/ffmpeg-formats.html#hls-2](https://ffmpeg.org/ffmpeg-formats.html#hls-2)。
+
+### FLV
+
+`flv` 解流器读取 FLV 文件与 RTMP 网络流；强制格式时直播断流用 `live_flv`。选项：`-flv_metadata`（按 onMetaData 建流）、`-flv_ignore_prevtag`、`-flv_full_metadata`。混流器选项 `flvflags`：`aac_seq_header_detect`、`no_sequence_end`、`no_metadata`、`no_duration_filesize`（直播流收尾时时长/大小为 0 则不写）、`add_keyframe_index`（利于 HTTP 伪流 seek）。
+
+### WAV
+
+解流器：`ignore_length`（忽略 data 块长度读到文件尾，救回头部未更新的残缺文件）、`max_size`（单包上限）。混流器：`rf64` 取 `auto`（超 4GB 自动转 RF64，JUNK 块占位）/ `always` / `never`（默认纯 RIFF，超 4GB 大小字段失效）；`write_bext`（BWF BEXT 块）、`write_peak`（EBU Tech 3285 峰值包络：`off`/`on`/`only`）及 `peak_block_size`、`peak_format`、`peak_ppv`。
+
+### MP3
+
+MP3 混流器写裸 MP3 流，可选特性：开头 ID3v2 头（默认启用，`id3v2_version` 取 3 或 4，0 关闭）；APIC 封面帧（以单包视频流提供，`title`/`comment` 元数据映射为描述与图片类型，注意会缓冲音频直到收齐图片）；ID3v2 之后的 Xing/LAME 帧（默认启用、仅可 seek 输出时写，`write_xing 0` 关闭）；文件尾旧式 ID3v1（`write_id3v1 1` 启用，能力极有限，不推荐）。示例（官方，逐字保留）：
+
+```sh
+ffmpeg -i INPUT -id3v2_version 3 -write_id3v1 1 out.mp3
+ffmpeg -i input.mp3 -i cover.png -c copy -map 0 -map 1 \
+  -metadata:s:v title="Album cover" -metadata:s:v comment="Cover (Front)" out.mp3
+ffmpeg -i input.wav -write_xing 0 -id3v2_version 0 out.mp3
+```
+
+### OGG
+
+`-page_duration`（微秒，页时长目标：0 尽量填满段、1 近似一页一包，默认 1 秒，权衡 seek 粒度与容器开销）、`-serial_offset`（起始序列号，取不同大值可安全串联 ogg 文件）。
+
+### concat 解流器
+
+从文本清单依次读多个文件，如同全部包已混流；自动调整时间戳使下一文件接在前一文件结尾。所有文件须有相同流（同编解码器、时基等）。指令：`file 路径`（空格用引号/反斜杠转义）、`ffconcat version 1.0`（放首行供自动探测）、`duration`（覆盖文件时长，齐全则可全片 seek）、`inpoint`/`outpoint`、`stream`（选取部分流）。清单示例（官方）：
+
+```text
+ffconcat version 1.0
+file file-1.wav
+duration 20.0
+file subdir/file-2.wav
+```
+
+## 元数据
+
+FFmpeg 可将元数据导出为 UTF-8 INI 风格文本并经 `ffmetadata` 混/解流器回读：首行 `;FFMETADATA1`，随后 `key=value` 全局标签；`[STREAM]`/`[CHAPTER]` 分节存流/章节标签，章节可带 `TIMEBASE=1/1000`、`START`、`END`；`;`、`#` 行为注释；`=`、`;`、`#`、`\` 与换行须用反斜杠转义。
+
+## 参见
+
+[ffmpeg 主手册](/docs/ffmpeg/)、[编解码器](/docs/codecs/)、[滤镜](/docs/filters/)；官方页面：[https://ffmpeg.org/ffmpeg-formats.html](https://ffmpeg.org/ffmpeg-formats.html)。
+
+## 作者
+
+FFmpeg 开发者，详见 [https://git.ffmpeg.org/ffmpeg](https://git.ffmpeg.org/ffmpeg)；维护者列在源码树 MAINTAINERS 文件。

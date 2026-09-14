@@ -1,0 +1,78 @@
+---
+title: 音频重采样器
+description: FFmpeg 音频重采样器(aresample)全部选项与用法中文手册
+group: 组件手册
+order: 5
+source: https://ffmpeg.org/ffmpeg-resampler.html
+---
+
+## 说明
+
+FFmpeg 重采样器（resampler）为 libswresample 库的音频重采样工具提供了高层接口。它主要用于：音频重采样（改变采样率）、音频声道布局重矩阵（rematrixing，即下混/上混声道）、以及转换音频采样格式与打包布局。
+
+在命令行中通过 `aresample` 滤镜使用（例如 `-af aresample=async=1`），`ffmpeg`、`ffplay` 等工具也会在你需要转换采样率、采样格式或声道布局时自动调用它。
+
+## 重采样器选项
+
+音频重采样器支持以下命名选项。可以用 `-选项 值` 的方式在 FFmpeg 工具中设置，或在 `aresample` 滤镜中以 `选项=值` 的形式设置；编程使用时可在 `SwrContext` 中显式赋值，或通过 `libavutil/opt.h` API 设置。
+
+> 全部选项见官方手册：[ffmpeg-resampler](https://ffmpeg.org/ffmpeg-resampler.html)，下表为完整列表。
+
+| 选项（别名） | 说明 | 默认值 |
+| --- | --- | --- |
+| `uchl`, `used_chlayout` | 设置所用输入声道布局，仅用于特殊重映射 | 未设置 |
+| `isr`, `in_sample_rate` | 输入采样率（Hz） | 0 |
+| `osr`, `out_sample_rate` | 输出采样率（Hz） | 0 |
+| `isf`, `in_sample_fmt` | 输入采样格式 | `none` |
+| `osf`, `out_sample_fmt` | 输出采样格式 | `none` |
+| `tsf`, `internal_sample_fmt` | 内部采样格式，未显式设置时自动选择 | `none` |
+| `ichl`, `in_chlayout` / `ochl`, `out_chlayout` | 输入/输出声道布局，语法见 ffmpeg-utils 手册的声道布局一节 | 无 |
+| `clev`, `center_mix_level` | 中置声道混合电平，单位分贝（dB），取值区间 [-32, 32] | 无 |
+| `slev`, `surround_mix_level` | 环绕声道混合电平，单位分贝，取值区间 [-32, 32] | 无 |
+| `lfe_mix_level` | 有 LFE 输入但无 LFE 输出时，LFE 混入非 LFE 的电平，单位分贝，取值区间 [-32, 32] | 无 |
+| `rmvol`, `rematrix_volume` | 重矩阵音量 | 1.0 |
+| `rematrix_maxval` | 重矩阵最大输出值，可用于避免削波或避免音量下降；设为 1.0 可防削波 | 无 |
+| `flags`, `swr_flags` | 转换器标志。`res`：即使输入输出采样率相同也强制重采样 | 0 |
+| `dither_scale` | 抖振（dither）缩放 | 1 |
+| `dither_method` | 抖振方法，见下表 | 0 |
+| `resampler` | 重采样引擎：`swr` 为原生重采样器（此时 `precision` 与 `cheby` 不适用）；`soxr` 为 SoX 重采样器（可用时；此时补偿及 `filter_size`、`phase_shift`、`exact_rational`、`filter_type`、`kaiser_beta` 不适用） | `swr` |
+| `filter_size` | 仅 swr：重采样滤波器长度 | 32 |
+| `phase_shift` | 仅 swr：相位偏移位数，取值区间 [0, 30] | 10 |
+| `linear_interp` | 启用时使用线性插值（默认启用）；关闭则在 `exact_rational` 失败时优先保速度而非质量 | 启用 |
+| `exact_rational` | 仅 swr：尝试按输入/输出采样率计算精确 phase_count，超过 `1 << phase_shift` 时回退。 | 启用 |
+| `cutoff` | 截止频率比（swr 为 6dB 点；soxr 为 0dB 点），0 到 1 之间的浮点数 | swr 为 0.97，soxr 为 0.91 |
+| `precision` | 仅 soxr：重采样信号的计算精度（位）。20 对应 SoX 的 High Quality，28 对应 Very High Quality | 20 |
+| `cheby` | 仅 soxr：选择无通带滚降（Chebyshev）并为“无理数”比率使用更高精度近似 | 0 |
+| `async` | 仅 swr：单参数音频时间戳同步（拉伸/挤压/填充/裁切）。设为 1 启用填充与裁切；更大值表示每秒最多可拉伸或挤压的样本数 | 0（不补偿） |
+| `first_pts` | 仅 swr：假定起始 PTS 为该值，单位 1/采样率，可在流开头做填充或裁切。例如设 0 可在音频晚于视频开始时用静音填充 | 不假定 |
+| `min_comp` | 仅 swr：触发拉伸/挤压/填充或裁切的时间戳与音频数据最小差值（秒） | FLT_MAX（默认禁用补偿） |
+| `min_hard_comp` | 仅 swr：在硬补偿（裁切/填充）与软补偿（挤压/拉伸）之间选择的阈值（秒）。注意所有补偿默认经 `min_comp` 禁用 | 0.1 |
+| `comp_duration` | 仅 swr：为匹配时间戳而拉伸/挤压数据的时长（秒），非负浮点数 | 1.0 |
+| `max_soft_comp` | 仅 swr：拉伸/挤压数据最大倍数，非负浮点数 | 0 |
+| `matrix_encoding` | 选择矩阵立体声编码：`none`、`dolby`（Dolby）、`dplii`（Dolby Pro Logic II） | `none` |
+| `filter_type` | 仅 swr：重采样滤波器类型：`cubic`（三次）、`blackman_nuttall`（Blackman-Nuttall 窗 sinc）、`kaiser`（Kaiser 窗 sinc） | 无 |
+| `kaiser_beta` | 仅 swr：Kaiser 窗 beta 值，区间 [2, 16] | 9 |
+| `output_sample_bits` | 仅 swr：抖振使用的输出采样位数，区间 [0, 64]，0 表示不使用 | 0 |
+
+### dither_method 取值
+
+| 值 | 含义 |
+| --- | --- |
+| `rectangular` | 矩形抖振 |
+| `triangular` | 三角形抖振 |
+| `triangular_hp` | 带高通的三角形抖振 |
+| `lipshitz` | Lipshitz 噪声整形抖振 |
+| `shibata` | Shibata 噪声整形抖振 |
+| `low_shibata` | 低 Shibata 噪声整形抖振 |
+| `high_shibata` | 高 Shibata 噪声整形抖振 |
+| `f_weighted` | f 加权噪声整形抖振 |
+| `modified_e_weighted` | 修正 e 加权噪声整形抖振 |
+| `improved_e_weighted` | 改进 e 加权噪声整形抖振 |
+
+## 参见
+
+[ffmpeg](https://ffmpeg.org/ffmpeg.html)、ffplay、ffprobe、libswresample；音频相关通用选项与表达式见 [ffmpeg-utils 手册](https://ffmpeg.org/ffmpeg-utils.html)。
+
+## 作者
+
+FFmpeg 开发者。作者详情见项目 Git 历史（[https://git.ffmpeg.org/ffmpeg](https://git.ffmpeg.org/ffmpeg)），可在源码目录执行 `git log`，或在线浏览该仓库。各组件维护者列在源码树的 MAINTAINERS 文件中。

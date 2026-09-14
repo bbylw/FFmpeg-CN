@@ -1,0 +1,115 @@
+---
+title: 参与贡献
+description: 如何向 FFmpeg 提交补丁：邮件列表与 Forgejo 流程、代码风格、FATE 测试。
+group: 资源
+order: 4
+source: https://ffmpeg.org/developer.html
+---
+
+本页译自官方开发者文档的投稿指引与社区页，帮助你把改动顺利送入 FFmpeg 主干。
+
+## 提交补丁的正确方式
+
+所有代码改动都应提交评审，渠道有两个：[Forgejo](https://code.ffmpeg.org/FFmpeg/FFmpeg/pulls)（code.ffmpeg.org 上的自建 Gitea/Forgejo 实例）或 [ffmpeg-devel 邮件列表](https://lists.ffmpeg.org/mailman/listinfo/ffmpeg-devel)。提交时请使用 `git format-patch` 或 `git send-email`，其他格式的 diff 我们无法阅读。请避免使用 GitHub 的拉取请求（pull request），因为它不属于我们的审核流程，会被直接忽略。
+
+流程要点：
+
+- 先阅读下方的代码风格规则，尤其是补丁提交部分。
+- 不要把多个不相关的改动塞进一个补丁，拆成尽量小的、自包含的逻辑单元（按改动拆而不是按文件拆），跨文件的单个改动可以是一个补丁。小补丁便于评审，也更容易被合入。
+- 用源码树 `tools/` 目录下的 patcheck 工具检查补丁。
+- 提交前先跑 FATE 回归测试（见下文），确认没有引入新问题。
+- 在邮件里说清楚补丁做了什么（例如 "replaces lrint by lrintf"）以及为什么（例如 "*BSD 不符合 C99，没有 lrint()"）。
+- 多个补丁请一封邮件一个补丁，不要在同一封邮件里附上多个不相关的补丁。
+- 尽量用 `git send-email`，它能正确发送补丁。做不到时，把补丁作为 base64 附件发送，确保 MIME 类型是 `text/x-diff`、`text/x-patch` 或至少 `text/plain`，避免传输过程毁掉补丁。可到 [patchwork.ffmpeg.org](https://patchwork.ffmpeg.org) 确认补丁是否成功入列，查不到多半是 MIME 类型错了。
+- `git send-email` 的配置方法见 [https://git-send-email.io/](https://git-send-email.io/)；Gmail 用户另见 [应用专用密码设置说明](https://shallowsky.com/blog/tech/email/gmail-app-passwds.html)。
+
+不方便用 `git send-email` 时，可以用邮件客户端安全发送的变通办法（已在 Outlook 和 Thunderbird 的 X-Unsent 扩展上验证）。用下面的命令生成补丁：
+
+```sh
+git format-patch -s -o "outputfolder" --add-header "X-Unsent: 1" --suffix .eml --to ffmpeg-devel@ffmpeg.org -1 1a2b3c4d
+```
+
+然后用邮件客户端打开生成的 `.eml` 文件，点"发送"即可。
+
+补丁或合并请求会在邮件列表或 code.ffmpeg.org 上被评审。你多半会被要求修改，并按评审意见提交改进版，这个过程可能重复若干轮；一旦补丁被认为足够好，某位开发者会把它合入官方仓库。如果你想要基于 LLM 的预审，可以把 [Forgejo Fairy](https://code.ffmpeg.org/Forgejo_Fairy) 加为合并请求的评审人（Fairy 本身的问题报告在[它的仓库](https://code.ffmpeg.org/michaelni/Fairies)）。给我们几天反应时间；若久久无人回应，发邮件提醒即可，你的补丁终究会被处理。
+
+提交补丁前的自查清单（节选）：
+
+- 打上补丁后 `make fate` 是否通过？
+- 补丁是否由 `git format-patch` 或 `git send-email` 生成？
+- 是否已 sign-off？（`git commit -s`，含义见 [Sign your work](https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/plain/Documentation/process/submitting-patches.rst)）
+- commit 说明是否清晰？是否基于最新的 git master？
+- 是否已订阅 ffmpeg-devel？（因垃圾邮件关系，列表只接受订阅者来信）
+- 改动是否已是最小实现？速度关键代码是否做了基准测试并附上结果？
+- 是否确认没有引入缓冲区溢出等安全问题？
+- 解码器/解流器是否对损坏数据做过测试（`tools/trasher`、noise 比特流过滤器、[zzuf](http://caca.zoy.org/wiki/zzuf)），且不崩溃、不死循环、不天文数字地分配内存？
+- 是否用 [https://samples.ffmpeg.org](https://samples.ffmpeg.org) 的样本测试过？
+- 有没有混入制表符或行尾空格（两者都禁止）？功能改动与外观改动是否分开？
+- 修 bug 的补丁是否附带详细分析，以及能复现问题、验证修复的足够信息（大于 100k 的样本别直接附在邮件里，给 URL，可上传到 [https://streams.videolan.org/upload/](https://streams.videolan.org/upload/)）？
+- 新文件是否加了取自 FFmpeg 自身的许可证头？
+- 是否为代码添加了回归测试？新的 demuxer、muxer、解码器、编码器、滤镜、比特流过滤器、解析器都应有测试覆盖；确实无法测试时在补丁说明里解释原因。
+- 新增 NASM 代码时，确认 `--disable-x86asm` 下仍能构建；用 valgrind 和/或 AddressSanitizer 确认无泄漏、无数组越界。
+
+## 评审过程
+
+发到 ffmpeg-devel 的补丁一律会被评审（明确注明不合入 master 的除外）。评审意见以回复形式发在列表上，投稿人须处理每一条意见：重新提交修改后的补丁或参与讨论。重新提交的补丁会像其他补丁一样被再次评审；某个补丁在某轮评审中零意见即视为通过。小补丁可能立即获批，大补丁往往要修改、评审很多轮。补丁获批后会被合入仓库。我们保证评审每一个补丁，但大家通常很忙，大补丁可能需要数周。
+
+如果觉得评审太慢，且愿意接手你所改动区域的维护，可以直接 clone git master 在你的仓库里维护该区域，我们会从维护得最好的地方合并各区域。重新提交补丁时，不要夹带与评审意见无关的重大改动，那样的补丁会被拒；重大改动和新功能请作为独立补丁提交。欢迎所有人参与评审别人正在等待的补丁，帮别人评审是让自己补丁更快被评审的好办法。
+
+## 代码风格要点
+
+FFmpeg 主要用 ISO C11 编写（公共头文件必须保持 C99 兼容）；禁止使用变长数组和复数。以下惯例必须遵守：
+
+- 缩进 4 空格；Makefile 之外禁止 TAB 字符，禁止任何形式的行尾空白，违反的提交会被 git 仓库拒绝。
+- 采用 K&R 风格（大致相当于 `indent -i4 -kr -nut` 的效果）。
+- 行宽以 80 字符为目标，但仅在能提高可读性时才换行。
+- 赋值符两侧和 `if`/`do`/`while`/`for` 关键字后加空格；括号与条件之间不加空格；避免不必要的括号；无 `else` 配套时不要给单行代码块加大括号。
+- 尽量不在条件里赋值（迭代器模式除外）；声明指针时 `*` 跟着变量名（`AVStream *stream;`）。
+- 变量作用域尽量窄，尤其是对 `for` 循环。
+- 注释使用 JavaDoc/Doxygen 格式，`@param`/`@return` 用 `@` 而非 `\`；不要用 `//!` 这类 Qt 风格。有内容的函数与非平凡结构体都应有注释。
+- 命名：函数、变量、结构体成员用小写加下划线（`avfilter_get_video_buffer`）；类型名用 CamelCase；宏与枚举常量用大写。库内标识符按 `ff_`（单库内部跨文件）、`avpriv_`（跨库内部）、各库公共前缀（`avcodec_`、`avformat_`、`swr_` 等）划分命名空间；不要侵犯以 `_t` 结尾、`__` 开头等系统保留名。
+- 类型转换仅在有必要时使用；能用 SI 单位就用 SI 单位（超时的基本单位是秒，`1.0` 表示 1 秒，`50m` 表示 50 毫秒）。
+- Vim/Emacs 用户可把官方推荐的格式化配置片段加入 `.vimrc` 或 `init.el`，见原文的 2.2.2 与 2.2.3 小节。
+- 遇到不符合规范的旧文件，只把你正在编辑的部分改到符合规范，不要做无关的整文件重排。
+
+完整的风格规则与示例见官方[开发者文档](https://ffmpeg.org/developer.html#Coding-Rules)。
+
+## 开发政策与提交信息
+
+- 代码必须正确：不崩溃、不越界、不泄漏、无数据竞争与有符号整数溢出；错误码必须检查并向上传递；对来自文件或网络的一切字节流都按不可信输入处理。
+- 内存分配一律使用 `libavutil/mem.h` 的 `av_malloc()` 系列，检查所有分配、失败时返回 `AVERROR(ENOMEM)`；库代码不得直接使用 stdin/stdout/stderr，日志用 `av_log()`。
+- 贡献代码的许可证：LGPL 2.1（含 "或更高版本" 条款）或 ISC/MIT、BSD 风格的馈赠型许可证；GPL 2（含 "或更高版本"）也接受但 LGPL 优先。
+- commit 说明格式固定为两行式：
+
+```text
+area changed: short 1 line description
+
+details describing what and why and giving references.
+```
+
+涉及 bug 跟踪单、CVE 等外部标识时把编号写进说明，但必须同时有完整的解释，"fixed!" 这种写法不可接受。修 bug 的补丁尽量小而完整；纯外观改动与功能改动严格分开。不要未经同意提交他人活跃维护的代码；给 ffmpeg-devel 发补丁，构建失败与安全修复 12 小时、小改动 3 天、大补丁 1 周内无人回复即可自行提交（维护者可以要求延长评审时间）。
+
+## FATE 回归测试
+
+提交补丁（或合入仓库）前，至少测试你没有破坏任何东西：运行 `make fate`，细节见 [fate 文档](http://fate.ffmpeg.org) 与 [fate.html](https://ffmpeg.org/fate.html)。若补丁合理地改变了回归结果，同步更新参考结果。没有现成编码器/混流器可生成测试媒体时，样本需上传进 fate-suite：先发邮件到 samples-request，尽量把样本裁剪到足以测试的最小尺寸，并在 commit 说明或补丁系列封面信里给出样本下载直链。
+
+测试覆盖率可视化（gcov/lcov）：`configure --toolchain=gcov` 构建，运行 FATE 或任意手工调用，`make lcov` 生成 HTML 报告并查看 `lcov/index.html`；用 `make lcov-reset` 重置测量。Valgrind 集成：给 configure 加 `--toolchain=valgrind-memcheck` 或 `--toolchain=valgrind-massif`，即可在 memcheck/massif 监管下跑 FATE；需要自定义参数时改用 `--target-exec='valgrind <你的选项>'`。
+
+## 沟通渠道
+
+- **邮件列表**：ffmpeg-devel（开发/评审主渠道，非订阅者来信会被 moderation 拦下，但对项目而言收到补丁比你是否订阅更重要，不订阅也可以直接发）、ffmpeg-cvslog（所有提交的 diff）、samples-request 等，订阅入口见 [https://ffmpeg.org/contact.html](https://ffmpeg.org/contact.html)。
+- **IRC**：#ffmpeg 与 #ffmpeg-devel @ [Libera.Chat](https://libera.chat/)。
+- **Wiki 与论坛**：[trac.ffmpeg.org](https://trac.ffmpeg.org)、[ffmpeg 论坛](https://www.ffmpeg.org/community.html)。
+- 重要讨论与请求尽量留在公开的开发者邮件列表上，让所有开发者受益。
+
+## 项目治理与行为准则
+
+FFmpeg 通过追求全球共识的社区来组织。活跃成员构成大会（General Assembly）：近 36 个月在主干仓库提交超过 20 个补丁的贡献者被视为活跃，名单每年 1 月 1 日与 7 月 1 日 0:00 UTC 更新（生成脚本见 `tools/general_assembly.pl`）。表决采用排序复选制，平台在 [vote.ffmpeg.org](https://vote.ffmpeg.org/)，多数指超过 50% 的有效票。
+
+技术委员会（TC）在出现技术冲突时仲裁作决定，由大会选出 5 人、任期 1 年，联系邮箱 tc@ffmpeg.org；其决定对所有贡献者有约束力，一年后可重审或由大会多数票重开。社区委员会（CC）负责处理人际冲突，可暂停当事人的提交权限乃至社区资格，同样 5 人一年，联系邮箱 cc@ffmpeg.org。
+
+行为准则（Code of Conduct）核心：对他人友善与尊重，己所不欲勿施于人；换位思考，不同观点让项目更好；不要把能归因于疏忽的事先假定为恶意；对方失礼时保持友好，自己状态不好就先休息一下再回复；帮助队友、愿意合作；目标是创造技术卓越，不是个人战胜他人，大型软件项目只能靠协作成功；遇到卡住的人请伸手帮一把而不是贬低。最后请记住 Bill 和 Ted 的不朽名言："Be excellent to each other."
+
+## 维护与发行
+
+各部分代码的维护者记录在源码树的 MAINTAINERS 文件里，列入即获得对应区域的 git 写权限；想把自己加进去，像提交普通补丁一样发补丁，由社区评审（反对者需实名公开反对，并愿意自己接手该区域）。发行版分两类：major 版本始终包含最新特性；point 版本从 release/X 分支切出。候选条件为（修复安全问题，最好有 CVE）或（修复 trac.ffmpeg.org 上的已记录 bug）或（改进文档），且必须与同分支之前的 point 版本保持源码与二进制兼容。共享库承诺在同一发行系列内永不破坏已编译的程序；确需 API 变更的，只允许在 major 版本中进行并提前在 ffmpeg-devel 讨论。完整发行检查清单见官方[开发者文档](https://ffmpeg.org/developer.html#Release-process)。

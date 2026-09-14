@@ -1,0 +1,61 @@
+---
+title: FFmpeg 是什么
+description: FFmpeg 是什么：七个库与三个工具，跨平台的音视频转码与流化方案。
+group: 开始
+order: 1
+source: https://ffmpeg.org/about.html
+---
+
+FFmpeg 是领先的多媒体框架，能够对人类和机器创造出来的几乎任何多媒体内容进行 **解码**、**编码**、**转码**、**混流**（mux）、**解流**（demux）、**流化**、**滤镜处理** 与 **播放**。它支持的格式从最冷僻的古老格式一直覆盖到最前沿的新格式，无论这些格式出自某个标准委员会、社区还是某家公司。它的可移植性也极强：FFmpeg 能在 Linux、Mac OS X、Microsoft Windows、各类 BSD、Solaris 等系统上编译、运行，并通过我们的测试基础设施 [FATE](http://fate.ffmpeg.org) 验证，涵盖各种构建环境、机器架构与配置组合。
+
+用一句话概括（来自官方首页）：FFmpeg 是一套跨平台的音视频录制、转换与流式传输完整方案。最简单的用法示例：
+
+```bash
+$ ffmpeg -i input.mp4 output.avi
+```
+
+## 组件构成
+
+FFmpeg 包含七个可供应用程序调用的库，以及三个供终端用户转码与播放的命令行工具。
+
+### 七个库
+
+* `libavcodec` 提供了大量音视频编解码器（编码器与解码器）的实现。
+* `libavformat` 实现了流媒体协议、容器格式以及基础的 I/O 访问，包含各种封装格式的解流器与混流器。
+* `libavutil` 包含哈希器、解压缩器以及各类实用工具函数，例如随机数生成器、数据结构、数学例程与核心多媒体工具等。
+* `libavfilter` 提供了通过相互连接的滤镜有向图（滤镜图）来改变已解码音视频的手段。
+* `libavdevice` 提供了访问采集与播放设备的抽象层，可从 Video4Linux、Video4Linux2、VfW、ALSA 等常见多媒体输入/输出框架中采集与渲染。
+* `libswresample` 实现了音频混音、重采样与采样格式转换例程。
+* `libswscale` 实现了色彩转换与缩放例程，包括高度优化的图像缩放和色彩空间/像素格式转换操作。
+
+### 三个工具
+
+* [ffmpeg](/docs/ffmpeg/)（[官方手册](https://ffmpeg.org/ffmpeg.html)）是一个命令行工具箱，用于操控、转换和流式传输多媒体内容。
+* [ffplay](/docs/ffplay/)（[官方手册](https://ffmpeg.org/ffplay.html)）是一个基于 SDL 和 FFmpeg 库的极简多媒体播放器。
+* [ffprobe](/docs/ffprobe/)（[官方手册](https://ffmpeg.org/ffprobe.html)）是一个用于检视多媒体内容的简易分析工具。
+
+此外还有 `aviocat`、`ismindex`、`qt-faststart` 等小型工具。
+
+## 项目理念与安全
+
+FFmpeg 项目致力于为应用开发者和终端用户提供技术上最优的解决方案。为此，我们组合使用可用的最佳自由软件方案；为了让对其他库的依赖保持低位、并最大化 FFmpeg 内部各部分的代码共享，我们会略微优先使用自己的代码。在"哪个最好"无法下定论的地方，我们会同时支持两种方案，把选择权交给终端用户。
+
+FFmpeg 欢迎所有人，也欢迎一切形式的贡献：补丁、拉取请求、缺陷报告、捐赠或其他任何类型都可以。
+
+安全是 FFmpeg 的高度优先事项，代码评审始终以安全为出发点。由于有大量代码需要处理不可信数据，安全问题在所难免，因此在发现新的安全问题后，我们会尽快为最新的稳定发行版提供更新。
+
+## 发展与发行
+
+FFmpeg 是一个高度实验性、由开发者驱动的项目，它是许多多媒体项目的关键组件，并且持续不断地加入新功能。项目大约每 6 个月发布一个新的大版本，每个 minor 版本都以人名代号命名（例如 8.1 "Hoare" 致敬图灵奖得主 Sir Charles Antony Richard Hoare，8.0 "Huffman" 致敬 David A. Huffman，7.1 "Péter" 致敬 Rózsa Péter）。自 2011 年以来，所有发行版都使用同一把官方 PGP 发布签名密钥进行签名验证。获取具体的版本与日期，请查看 [下载页面](/docs/download/)。
+
+## 许可证
+
+FFmpeg 代码库主要以 LGPL 许可证发布，部分可选组件以 GPL 许可证发布。详细说明请参考 [LICENSE](https://github.com/FFmpeg/FFmpeg/blob/master/LICENSE) 文件。
+
+## 继续阅读
+
+* [下载 FFmpeg](/docs/download/)：各平台安装包、源码获取与签名验证。
+* [快速上手](/docs/quickstart/)：最常用的命令行示例。
+* [通用语法](/docs/syntax/)：选项、引用转义、时间、颜色与表达式求值。
+* 离线文档位于 [doc/](https://github.com/FFmpeg/FFmpeg/tree/master/doc) 目录，在线文档可在主 [网站](https://ffmpeg.org) 以及 [wiki](https://trac.ffmpeg.org) 上查阅，编码示例位于 [doc/examples](https://github.com/FFmpeg/FFmpeg/tree/master/doc/examples) 目录。
+* 补丁应通过 `git format-patch` 或 `git send-email` 提交至 ffmpeg-devel 邮件列表。请避免使用 GitHub 拉取请求（pull request），因为它们不属于我们的审核流程，并且会被忽略。

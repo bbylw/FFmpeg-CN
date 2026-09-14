@@ -1,0 +1,183 @@
+---
+title: ffprobe 命令行工具
+description: ffprobe 使用说明：媒体信息检视、流选择、输出写入器与常用选项
+group: 命令行工具
+order: 2
+source: https://ffmpeg.org/ffprobe.html
+---
+
+## 用法总览
+
+```text
+ffprobe [options] input_url
+```
+
+## 简介
+
+`ffprobe` 从多媒体流中收集信息，并以供人和机器阅读的形式打印出来。例如可用来检查某多媒体流所用的容器格式，以及其中每一路媒体流的格式与类型。
+
+若输入中指定了 URL，ffprobe 会尝试打开并探测其内容；无法打开或无法识别为多媒体文件时返回正的退出码。若没有用 `-o` 指定输出文件，ffprobe 写入标准输出。它既可作为独立应用使用，也可与文本过滤器结合做更复杂的处理（例如统计或绘图）。
+
+选项用于列出 ffprobe 支持的部分格式、指定显示哪些信息及其显示方式。ffprobe 的输出易于被文本过滤器解析，由一个或多个节（section）组成，节的形式由 `output_format` 选项所选的写入器决定。节可嵌套，以名称（可与其他节共享）和唯一名称标识，见 `-sections` 的输出。存储在容器或流中的元数据标签会被识别，并打印在对应的 FORMAT、STREAM、STREAM_GROUP_STREAM 或 PROGRAM_STREAM 节中。
+
+## 选项
+
+除另有说明外，数值选项接受数字字符串，可跟 SI 单位前缀 `K`、`M`、`G`；前缀追加 `i` 表示二进制倍数（以 1024 为幂），追加 `B` 则值乘以 8，故 `KB`、`MiB`、`G`、`B` 均可作后缀。不带参数的选项是布尔选项（值为 true），在名前加 `no` 置为 false（如 `-nofoo`）。
+
+带参选项支持一种特殊语法：在首个短横线后、选项名前加正斜杠 `/`，参数将被解释为文件路径，实际值从该文件加载。例如：
+
+```text
+ffmpeg -i INPUT -/filter:v filter.script OUTPUT
+```
+
+会从名为 `filter.script` 的文件加载滤镜图描述。
+
+### 流说明符
+
+有些选项按流生效（如码率或编解码器），流说明符用于精确指定选项作用于哪些流。它是接在选项名后、以冒号分隔的字符串，如 `-codec:a:1 ac3` 含说明符 `a:1`，匹配第二路音频流并为其选 ac3。一个说明符可匹配多路流并全部生效（`-b:a 128k` 匹配所有音频流）；空说明符匹配所有流（`-codec copy` 与 `-codec: copy` 均直接复制全部流、不重编码）。
+
+可能的形式：
+
+- `stream_index`：按索引匹配，如 `-threads:1 4` 把第二路流的线程数设为 4。作附加说明符时从匹配流中取第 `stream_index` 路。流编号按 libavformat 检测顺序；指定流组说明符或 program ID 时按组/program 内顺序。
+- `stream_type[:附加说明符]`：类型取 `v`/`V`（视频，`V` 排除附件图片、缩略图、封面）、`a`（音频）、`s`（字幕）、`d`（数据）、`t`（附件）。带附加说明符时要求同时满足两个条件，否则匹配该类型全部流。
+- `g:group_specifier[:附加说明符]`：匹配属于某流组的流，`group_specifier` 为组索引或 `#group_id`/`i:group_id`。
+- `p:program_id[:附加说明符]`：匹配属于指定 program 的流，规则同上。
+- `#stream_id` 或 `i:stream_id`：按流 id 匹配（如 MPEG-TS 中的 PID）。
+- `m:key[:value]`：匹配元数据标签 `key` 取指定值的流，不给 `value` 则含该标签即匹配；`key`/`value` 中的冒号需反斜杠转义。
+- `disp:dispositions[:附加说明符]`：匹配具有给定 disposition 的流，多个以 `+` 连接（取值见 `-dispositions` 输出）。
+- `u`：匹配配置可用的流：编解码器已定义，且视频尺寸或音频采样率等必要信息齐备。
+
+注意在 `ffmpeg` 中，按元数据匹配只对输入文件可靠。
+
+### 通用选项
+
+ff\* 工具共享、与 ffmpeg 主手册一致：查询类 `-L`、`-h`/`-help [arg]`（`arg` 可取 `long`、`full`、`decoder=名`、`encoder=名`、`demuxer=名`、`muxer=名`、`filter=名`、`bsf=名`、`protocol=名`）、`-version`、`-buildconf`，以及 `-formats`、`-codecs`、`-decoders`、`-encoders`、`-bsfs`、`-protocols`、`-filters`、`-devices`、`-demuxers`、`-muxers`、`-pix_fmts`、`-sample_fmts`、`-layouts`、`-dispositions`、`-colors`、`-sources`/`-sinks`；日志类 `-loglevel [flags+]级别`（`quiet` 到 `trace` 对应 -8 到 56，flags 取 `repeat`/`level`/`time`/`datetime`）、`-report`、`-hide_banner`；另有 `-cpuflags`/`-cpucount`（仅测试）、`-max_alloc`（堆分配上限）。完整说明见 [ffprobe 官方手册](https://ffmpeg.org/ffprobe.html#Generic-options)。
+
+### AVOptions
+
+由 libavformat、libavdevice、libavcodec 直接提供，`-help` 可列出。分两类：generic 可设给任何容器、编解码器或设备；private 为特定对象专有。布尔 AVOptions 不能用 `-nooption`，要写 `-option 0`/`-option 1`；在选项名前加 v/a/s 的逐流旧写法已过时、将被移除。详见 [ffmpeg 手册对应小节](/docs/ffmpeg/)。
+
+### 主要选项
+
+完整列表见[官方手册](https://ffmpeg.org/ffprobe.html#Main-options)，常用项：
+
+- `-f format` 强制使用某格式。`-unit` 显示值的单位；`-prefix` 值用 SI 前缀（默认十进制）；`-byte_binary_prefix` 字节值用二进制前缀；`-sexagesimal` 时间值用 HH:MM:SS.MICROSECONDS；`-pretty` 等价于四者合用。
+- `-output_format`/`-of`/`-print_format writer_name[=writer_options]` 设置输出打印格式：写入器名加冒号分隔的 `key=value` 选项，如 `-output_format json`。详见下文「写入器」。
+- `-sections` 打印节结构与节信息后退出，该输出不供机器解析。
+- `-select_streams stream_specifier` 只选择说明符指定的流，仅影响 `show_streams`、`show_packets` 等流相关选项。例如只显示音频流、只显示索引 1 视频流的视频包：
+
+  ```text
+  ffprobe -show_streams -select_streams a INPUT
+  ffprobe -show_packets -select_streams v:1 INPUT
+  ```
+
+- `-show_error` 显示探测输入时发现错误的信息（ERROR 节）；`-show_format` 显示容器格式信息（FORMAT 节）；`-show_streams` 显示每一路媒体流信息（STREAM 节）。
+- 其余显示开关，内容分别独占同名节：`-show_packets`（PACKET）、`-show_frames`（每帧与每条字幕，FRAME 或 SUBTITLE）、`-show_programs`（PROGRAM_STREAM）、`-show_stream_groups`（STREAM_GROUP_STREAM）、`-show_chapters`（CHAPTER）。
+- `-show_log loglevel` 配合 `-show_frames`，按指定日志级别（见 `-loglevel`）显示解码器对每帧的日志，每条置于 LOG 节。
+- `-show_data` 以十六进制加 ASCII 转储负载数据；配 `-show_packets` 转储包数据，配 `-show_streams` 转储编解码器 extradata。转储是 "data" 字段，可能含换行；`-data_dump_format format` 选转储格式（默认 `xxd`，兼容同名工具；另支持 `base64`）；`-show_data_hash algorithm` 改为显示负载数据哈希。
+- `-show_entries section_entries` 设置要显示的条目。`section_entries` 是以 `:` 分隔的节条目列表，每个条目为节名（或唯一名）加可选的、以 `,` 分隔的本节条目。只给节名不跟 `=` 时打印该节全部条目及所含子节；跟 `=` 后只打印列出的条目，`=` 后为空则不显示任何条目。条目书写顺序不影响输出顺序。形式化语法：
+
+  ```text
+  LOCAL_SECTION_ENTRIES ::= SECTION_ENTRY_NAME[,LOCAL_SECTION_ENTRIES]
+  SECTION_ENTRY         ::= SECTION_NAME[=[LOCAL_SECTION_ENTRIES]]
+  SECTION_ENTRIES       ::= SECTION_ENTRY[:SECTION_ENTRIES]
+  ```
+
+  例如只显示每路流的 index 与 codec_type、每包的 PTS 时间/时长/流索引；或 format 节全显示、stream 节只显 codec_type；或显示流与 format 节全部标签、或只显流节的 title 标签：
+
+  ```text
+  packet=pts_time,duration_time,stream_index : stream=index,codec_type
+  format : stream=codec_type
+  stream_tags : format_tags
+  stream_tags=title
+  ```
+
+- `-count_frames`/`-count_packets` 统计每路流的帧数/包数并报告在对应流节。
+- `-read_intervals read_intervals` 只读指定区间，值为逗号分隔的区间序列，ffprobe 会 seek 到区间起点再读。每区间两段可选、以 `%` 分隔：起点为绝对位置或以 `+` 开头的相对偏移（省略则不 seek）；终点同规则，偏移以 `#` 开头表示从起点读取的包数（不含冲刷包），省略则读到输入结尾。注意 seek 不精确，实际起点可能与指定值不同，按时长指定的终点从 seek 找到的实际起点推算。语法：
+
+  ```text
+  INTERVAL  ::= [START|+START_OFFSET][%[END|+END_OFFSET]]
+  INTERVALS ::= INTERVAL[,INTERVALS]
+  ```
+
+  官方示例（逐字保留）：
+
+  ```text
+  10%+20,01:30%01:45
+  01:23%+#42
+  %+20
+  %02:30
+  ```
+
+  依次为：seek 到 10 秒、读到 seek 点后 20 秒，再 seek 到 `01:30` 读到 `01:45`；seek 到 `01:23` 后只读 42 个包；从开头只读前 20 秒；从开头读到 `02:30`。
+
+- `-show_private_data`/`-private` 显示依赖元素格式的私有数据；默认开启，生成 XSD 兼容 XML 时可能需关闭。
+- `-show_program_version`/`-show_library_versions`/`-show_versions` 显示程序版本（PROGRAM_VERSION 节）、各库版本（LIBRARY_VERSION 节）、两者合用；`-show_pixel_formats` 显示 FFmpeg 支持的全部像素格式（PIXEL_FORMAT 节）。
+- `-show_optional_fields value` 控制 JSON/XML 写入器是否省略值无效或不适用的字段（其他写入器总是打印），合法值 `always`/`1`、`never`/`0`、`auto`/`-1`，默认 `auto`。
+- `-analyze_frames` 分析帧及其侧数据（直到给定读取区间），在流级别提供附加信息，须与 `-show_streams` 同用；当前附加字段为 `closed_captions` 与 `film_grain`。例如分析前 20 秒：
+
+  ```text
+  ffprobe -show_streams -analyze_frames -read_intervals "%+20" INPUT
+  ```
+
+- `-bitexact` 强制位精确输出，适合产出不依赖具体构建的结果。`-i input_url` 读输入、`-o output_url` 写输出（缺省到 stdout）。`-c:media_specifier codec_name`（`-codec:` 同义）为 `media_specifier`（取 `a`、`v`、`s`、`d`）指定的流强制某解码器。
+
+## 写入器
+
+写入器定义 ffprobe 采用的输出形式，应用于输出的所有部分。写入器可接受一个或多个参数，写成以 `:` 分隔的 `key=value` 列表。所有写入器都支持：`string_validation`（`sv`）设置字符串校验模式，`fail` 发现非法 UTF-8 序列或码点时立即失败（适合校验输入元数据）、`ignore` 忽略校验错误（可能造成不完整的 json/xml 输出）、`replace` 用 `string_validation_replacement` 指定的串替换非法序列，默认 `replace`；`string_validation_replacement`（`svr`）设置替换串，未指定时为空串（删除非法序列）。
+
+### default
+
+默认格式，每个节按以下形式打印：
+
+```text
+[SECTION]
+key1=val1
+...
+keyN=valN
+[/SECTION]
+```
+
+元数据标签作为一行打印在对应的 FORMAT、STREAM、STREAM_GROUP_STREAM 或 PROGRAM_STREAM 节中，前缀 `TAG:`。选项：`nokey`（`nk`）置 1 不打印键名，默认 0；`noprint_wrappers`（`nw`）置 1 不打印节的头尾包裹行，默认 0。
+
+### compact, csv
+
+紧凑与 CSV 格式，`csv` 与 `compact` 等价、只是默认值不同。每节打印为一行，无选项时形如：
+
+```text
+section|key1=val1| ... |keyN=valN
+```
+
+元数据标签打印在对应 format 或 stream 节中，键前缀 `tag:`。选项：`item_sep`（`s`）字段分隔符，单个可打印字符，默认 `|`（csv 为 `,`）；`nokey`（`nk`）默认 0（csv 为 1）；`escape`（`e`）转义模式，默认 `c`（csv 为 `csv`），可取 `c`（C 风格：换行、回车转 `\n`、`\r`，`\` 转 `\\`，分隔符转 `\<SEP>`）、`csv`（按 RFC4180，含换行、回车、双引号或分隔符的字段用双引号包裹）、`none`（不转义）；`print_section`（`p`）为 1 时每行开头打印节名，默认 1。
+
+### flat
+
+平面格式：自由形式，每行一个显式 key=value（如 `streams.stream.3.tags.foo=bar`）。输出经 shell 转义，只要分隔符是字母数字或下划线（见 `sep_char`）即可直接嵌入 sh 脚本。选项：`sep_char`（`s`）分隔章节、节名、ID 与标签的字符，默认 `.`；`hierarchical`（`h`）置 1（默认）且当前章节含多个节时节名加章节名前缀，0 关闭。
+
+### ini
+
+基于 INI 的输出，采用约定：键值均为 UTF-8；`.` 为子组分隔符；换行、`\t`、`\f`、`\b` 及下列字符被转义，`\` 为转义字符；`#` 为注释符；`=` 为键值分隔符；`:` 不用作分隔符但常被解析器识别为键值分隔符。选项以 `:` 分隔的 `key=value` 传入。选项 `hierarchical`（`h`）同 flat，默认 1。
+
+### json
+
+JSON 格式，每节以 JSON 记法打印。选项 `compact`（`c`）置 1 每节单行，默认 0。JSON 更多信息见 [http://www.json.org/](http://www.json.org/)。
+
+### xml
+
+XML 格式。输出结构由 FFmpeg 数据目录中的 schema 文件 `ffprobe.xsd` 定义，更新版可从 [http://www.ffmpeg.org/schema/ffprobe.xsd](http://www.ffmpeg.org/schema/ffprobe.xsd) 获取（重定向到开发源码树最新 schema）。注意只有不指定特殊全局输出选项（`unit`、`prefix`、`byte_binary_prefix`、`sexagesimal` 等）时输出才符合 ffprobe.xsd。选项：`fully_qualified`（`q`）置 1 输出完全限定形式（XSD 校验时需要），默认 0；`xsd_strict`（`x`）置 1 做更多 XSD 兼容检查，默认 0，会自动置 `fully_qualified` 为 1。XML 更多信息见 [https://www.w3.org/XML/](https://www.w3.org/XML/)。
+
+## 时间码
+
+ffprobe 支持时间码提取：
+
+- MPEG1/2 时间码从 GOP 提取，见视频流详情（`-show_streams` 的 `timecode` 字段）。
+- MOV 时间码从 tmcd 轨提取，见 tmcd 流元数据（`-show_streams` 的 `TAG:timecode`）。
+- DV、GXF、AVI 时间码在格式元数据中（`-show_format` 的 `TAG:timecode`）。
+
+## 参见
+
+[ffprobe-all](https://ffmpeg.org/ffprobe-all.html)、[ffmpeg](/docs/ffmpeg/)、[ffplay](/docs/ffplay/)，以及 ffmpeg-utils、ffmpeg-scaler、ffmpeg-resampler、ffmpeg-codecs、ffmpeg-bitstream-filters、ffmpeg-formats、ffmpeg-devices、ffmpeg-protocols、ffmpeg-filters 各手册（均在 `https://ffmpeg.org/<名称>.html`）
+
+## 作者
+
+FFmpeg 开发者，作者详情见项目 [Git 历史](https://git.ffmpeg.org/ffmpeg)；各组件维护者列在源码树 `MAINTAINERS`。
