@@ -123,19 +123,28 @@ body {
   border-radius: 999px;
 }
 
-/* Shiki 双主题（defaultColor:false 输出 --shiki-light/--shiki-dark 变量） */
+/* Shiki 双主题（defaultColor:false 输出 --shiki-light* / --shiki-dark* 变量）。
+   背景与前景必须各自按主题取：只钉背景会让暗色模式变成「浅字白底」，
+   实测对比度 1.44:1，整页代码块不可读。默认取浅色档，暗色再覆盖。 */
 .astro-code {
   background-color: var(--shiki-light-bg) !important;
 }
 .astro-code span {
-  color: var(--shiki-dark) !important;
-}
-html[data-theme="light"] .astro-code span {
   color: var(--shiki-light) !important;
 }
-@media (prefers-color-scheme: light) {
-  html:not([data-theme="dark"]) .astro-code span {
-    color: var(--shiki-light) !important;
+html[data-theme="dark"] .astro-code {
+  background-color: var(--shiki-dark-bg) !important;
+}
+html[data-theme="dark"] .astro-code span {
+  color: var(--shiki-dark) !important;
+}
+/* 主题脚本未执行时跟随系统 */
+@media (prefers-color-scheme: dark) {
+  html:not([data-theme="light"]) .astro-code {
+    background-color: var(--shiki-dark-bg) !important;
+  }
+  html:not([data-theme="light"]) .astro-code span {
+    color: var(--shiki-dark) !important;
   }
 }
 

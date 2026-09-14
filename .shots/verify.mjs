@@ -174,6 +174,71 @@ for (const theme of ["dark", "light"]) {
     if (v < limit) fails.push(`${theme} 对比度 ${k}=${v} < ${limit}`);
   }
 }
+// 代码块对比度：Shiki 双主题靠 CSS 变量接线，只接一半会整页代码不可读
+for (const theme of ["dark", "light"]) {
+  await page.goto(BASE + "/docs/ffmpeg/", { waitUntil: "load" });
+  await page.evaluate((t) => {
+    document.documentElement.dataset.theme = t;
+  }, theme);
+  const codeRes = await page.evaluate(() => {
+    const lum = (c) => {
+      const [r, g, b] = c.map((v) => {
+        v /= 255;
+        return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4;
+      });
+      return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+    };
+    const parse = (s) => {
+      const m = s.match(/[\d.]+/g);
+      if (!m) return null;
+      return [+m[0], +m[1], +m[2], m[3] === undefined ? 1 : +m[3]];
+    };
+    const ratioOf = (fgRaw, bg) => {
+      const fg = [0, 1, 2].map((i) => fgRaw[i] * fgRaw[3] + bg[i] * (1 - fgRaw[3]));
+      const a = lum(fg);
+      const b = lum(bg);
+      return (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
+    };
+    const blocks = [...document.querySelectorAll("pre.astro-code")];
+    if (!blocks.length) return { blocks: 0, worst: null, base: null, bg: null, sample: null };
+    let worst = Infinity;
+    let sample = null;
+    let base = Infinity;
+    for (const pre of blocks) {
+      const bg = parse(getComputedStyle(pre).backgroundColor);
+      if (!bg) continue;
+      for (const span of pre.querySelectorAll("span")) {
+        if (!span.textContent.trim()) continue;
+        const raw = parse(getComputedStyle(span).color);
+        if (!raw) continue;
+        const ratio = ratioOf(raw, bg);
+        // .line 上挂的是主题的默认前景色，也就是「代码块里的正文」
+        if (span.classList.contains("line")) base = Math.min(base, ratio);
+        if (ratio < worst) {
+          worst = ratio;
+          sample = span.textContent.trim().slice(0, 20);
+        }
+      }
+    }
+    return {
+      blocks: blocks.length,
+      worst: Number.isFinite(worst) ? +worst.toFixed(2) : null,
+      base: Number.isFinite(base) ? +base.toFixed(2) : null,
+      bg: getComputedStyle(blocks[0]).backgroundColor,
+      sample,
+    };
+  });
+  console.log(`code[${theme}]`, JSON.stringify(codeRes));
+  // 正文按 WCAG AA 4.5：Shiki 双主题只接一半会变成浅字白底（曾实测 1.44）
+  if (codeRes.base !== null && codeRes.base < 4.5)
+    fails.push(`${theme} 代码块正文对比度 ${codeRes.base} < 4.5（背景 ${codeRes.bg}）`);
+  // 单个 token 按 WCAG 非正文图形 3:1：主题会把标点写成带 alpha 的淡色，低到看不见
+  if (codeRes.worst !== null && codeRes.worst < 3)
+    fails.push(
+      `${theme} 有代码 token 对比度 ${codeRes.worst} < 3（背景 ${codeRes.bg}，样本「${codeRes.sample}」）`
+    );
+}
+
 await browser.close();
 
 if (fails.length) {

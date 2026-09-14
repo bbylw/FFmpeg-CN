@@ -5,6 +5,7 @@ import sitemap from "@astrojs/sitemap";
 import tailwindcss from "@tailwindcss/vite";
 import { unified } from "@astrojs/markdown-remark";
 import { rehypeHeadingIds } from "./src/lib/md-slug";
+import { stripTokenAlpha } from "./src/lib/shiki-token-alpha";
 
 export default defineConfig({
   // 自定义域：GitHub Pages 里用 API 设 cname，不要往 public/ 放 CNAME 文件
@@ -31,6 +32,8 @@ export default defineConfig({
         dark: "vitesse-dark",
       },
       defaultColor: false,
+      // 主题给标点带 alpha（引号只剩 47% 不透明度），手册里引号必须看得清
+      transformers: [stripTokenAlpha()],
     },
   },
 });

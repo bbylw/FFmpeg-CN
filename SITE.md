@@ -31,6 +31,18 @@ FFmpeg 中文站：营销首页 + 完整中文文档站。仓库根 `README.md` 
 - 文档表格启用 `tabular-nums`，参数表同列数值才对齐。
 - `@media print` 强制切亮色纸面并隐藏导航、侧栏、页脚：手册常被整页打印存档。
 
+代码高亮（最容易静默失效的一处，改动前先读这段）：
+
+- Shiki 跑双主题（`shikiConfig.defaultColor: false`），只输出 `--shiki-light*` / `--shiki-dark*` 两组变量，
+  由 CSS 决定用哪组。**背景和前景必须各自接线**：只把背景钉在浅色档，暗色模式就会变成「浅字白底」，
+  实测对比度 1.44:1，整页代码块不可读。`global.css` 里默认取浅色档，`html[data-theme="dark"]` 再覆盖，
+  另有一段 `prefers-color-scheme` 兜底（主题脚本未执行时）。
+- `src/lib/shiki-token-alpha.ts` 在生成 HAST 阶段去掉 token 色值里的 alpha：vitesse 给标点（字符串引号）
+  写的是 `#C98A7D77`（47% 不透明度），一般项目无所谓，但本站手册大篇幅讲 shell 引用，引号被压到
+  2.36:1 就糊了。**注意 Shiki 4 的逐 token 钩子叫 `span`**，旧的 `token` 钩子已移除——键名写错不报错、
+  只是静默不生效（这个坑踩过一次）。
+- 深色底上中文标点显示偏暗时，先量对比度再改色，别凭肉眼判断缩放后的截图。
+
 首屏核心视觉是纯 SVG + CSS 变量的「媒体管线」组件（`src/components/PipelineVisual.astro`）：解流 → 解码 → 滤镜 → 编码 → 混流，含字幕 `-c:s copy` 虚线通道与沿线流动的 packet；小屏自动切换竖排简化版；`prefers-reduced-motion` 下静态。
 
 ## 目录结构
