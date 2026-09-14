@@ -21,6 +21,16 @@ FFmpeg 中文站：营销首页 + 完整中文文档站。仓库根 `README.md` 
 
 终端暗色为默认（品牌即 ffmpeg.org 自身的 #171717 + 信号绿），亮色为「纸面 + 深绿信号」翻转。核心 tokens 在 `src/styles/global.css`：`--color-accent` 与 `--color-accent-ink` 随 `html[data-theme]` 成对翻转，全站 `bg-accent text-accent-ink` 组合两种模式自动保持对比。圆角规则：卡片/瓦片 12px（`--radius-tile`），代码块 10px（`--radius-code`），交互按钮全胶囊。
 
+细节约定（改 UI 时沿用，`.shots/interact.mjs` 有对应断言，`.shots/ui-audit.mjs` 可复量）：
+
+- `--header-h: 60px` 是吸顶头部高度的唯一来源：`SiteHeader` 用它定高，`--anchor-gap = --header-h + 1rem` 用于正文标题的 `scroll-margin-top` 与两个侧栏的 `sticky top`。锚点落点被头部盖住过一次，不要再写死数字。
+- 焦点环统一 `:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px }`。浏览器默认在暗色底上是 1px 近黑描边，等于没有。
+- 细滚动条统一用 `.thin-scroll`（`.prose-doc pre` / `table` 已内置），不要再单独写 `::-webkit-scrollbar`。
+- 标题 `text-wrap: balance`，正文段落 `text-pretty`；首页导语的测量宽度是实测调出来的（40ch 会折出只剩 4 字的末行）。
+- 强调色只留给「当前项 + 主动作 + 卡片外框」，同一屏里不要出现七处绿。
+- 文档表格启用 `tabular-nums`，参数表同列数值才对齐。
+- `@media print` 强制切亮色纸面并隐藏导航、侧栏、页脚：手册常被整页打印存档。
+
 首屏核心视觉是纯 SVG + CSS 变量的「媒体管线」组件（`src/components/PipelineVisual.astro`）：解流 → 解码 → 滤镜 → 编码 → 混流，含字幕 `-c:s copy` 虚线通道与沿线流动的 packet；小屏自动切换竖排简化版；`prefers-reduced-motion` 下静态。
 
 ## 目录结构
@@ -68,6 +78,7 @@ node .shots/serve.mjs &        # 127.0.0.1:8199 直连 dist
 node .shots/verify.mjs         # 明暗×桌面/移动截图 + 溢出/破折号/重复id/对比度断言
 node .shots/interact.mjs       # 主题切换、Ctrl+K 搜索（含方向键/焦点归还）、TOC、移动菜单、图标字形
 node .shots/overflow.mjs       # 列出某页超出视口右侧的元素（默认 390px 宽）
+node .shots/ui-audit.mjs       # UI 细节取证：锚点偏移/焦点环/数字对齐/滚动条/区块原比例截图（加 --shots）
 node .shots/check-mdx.mjs      # 用 mdx-js 引擎预检所有 MDX（<url> autolink 等坑）
 ```
 

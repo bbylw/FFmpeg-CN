@@ -81,6 +81,48 @@ body {
   border-radius: 999px;
 }
 
+/* ------------------------------------------------------------------
+   统一的交互细节
+------------------------------------------------------------------ */
+
+:root {
+  /* 吸顶头部高度：sticky 定位与锚点偏移共用同一来源 */
+  --header-h: 60px;
+  /* 锚点落点留白 */
+  --anchor-gap: calc(var(--header-h) + 1rem);
+}
+
+/* 焦点环：浏览器默认在暗色底上是 1px 近黑描边，几乎不可见 */
+:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+/* 细滚动条：与首页胶囊轨道一致，用于侧栏、代码块、宽表格、搜索结果 */
+.thin-scroll,
+.prose-doc pre,
+.prose-doc table {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-line-strong) transparent;
+}
+.thin-scroll::-webkit-scrollbar,
+.prose-doc pre::-webkit-scrollbar,
+.prose-doc table::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+.thin-scroll::-webkit-scrollbar-track,
+.prose-doc pre::-webkit-scrollbar-track,
+.prose-doc table::-webkit-scrollbar-track {
+  background: transparent;
+}
+.thin-scroll::-webkit-scrollbar-thumb,
+.prose-doc pre::-webkit-scrollbar-thumb,
+.prose-doc table::-webkit-scrollbar-thumb {
+  background: var(--color-line-strong);
+  border-radius: 999px;
+}
+
 /* Shiki 双主题（defaultColor:false 输出 --shiki-light/--shiki-dark 变量） */
 .astro-code {
   background-color: var(--shiki-light-bg) !important;
@@ -113,6 +155,7 @@ html[data-theme="light"] .astro-code span {
   letter-spacing: -0.01em;
   line-height: 1.35;
   margin: 0 0 0.75rem;
+  text-wrap: balance;
 }
 .prose-doc h2 {
   font-size: 1.3rem;
@@ -121,11 +164,16 @@ html[data-theme="light"] .astro-code span {
   margin: 2.6em 0 0.9em;
   padding-bottom: 0.45em;
   border-bottom: 1px solid var(--color-line);
+  text-wrap: balance;
 }
 .prose-doc h3 {
   font-size: 1.06rem;
   font-weight: 700;
   margin: 2em 0 0.7em;
+}
+/* 从本页目录 / 搜索结果 / 面包屑跳进来时，标题不能被吸顶头部盖住 */
+.prose-doc :is(h1, h2, h3, h4) {
+  scroll-margin-top: var(--anchor-gap);
 }
 .prose-doc h2 .doc-link,
 .prose-doc h3 .doc-link {
@@ -140,6 +188,7 @@ html[data-theme="light"] .astro-code span {
 }
 .prose-doc p {
   margin: 0 0 1.1em;
+  text-wrap: pretty;
 }
 .prose-doc a {
   color: var(--color-accent);
@@ -228,6 +277,8 @@ html[data-theme="light"] .astro-code span {
   line-height: 1.65;
   display: block;
   overflow-x: auto;
+  /* 数字等宽，参数表里同一列的数值才能对齐 */
+  font-variant-numeric: tabular-nums;
 }
 .prose-doc thead th {
   text-align: left;
@@ -264,5 +315,50 @@ html[data-theme="light"] .astro-code span {
     animation-duration: 0.001s !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.001s !important;
+  }
+}
+
+/* ------------------------------------------------------------------
+   打印 / 导出 PDF：手册经常被整页打印或存档。
+   默认是终端暗色，直接打印会糊掉，这里强制切到亮色纸面并去掉导航外壳。
+------------------------------------------------------------------ */
+@media print {
+  html {
+    color-scheme: light;
+    scroll-behavior: auto;
+    --color-bg: #ffffff;
+    --color-surface: #ffffff;
+    --color-elevated: #f6f6f6;
+    --color-line: #d8d8d8;
+    --color-line-strong: #9b9b9b;
+    --color-ink: #000000;
+    --color-ink-2: #2e2e2e;
+    --color-ink-3: #565656;
+    --color-accent: #1f5c25;
+    --color-accent-ink: #ffffff;
+    --color-accent-soft: #eef3ee;
+  }
+  @page {
+    margin: 18mm 16mm;
+  }
+  header,
+  footer,
+  aside,
+  .skip-link,
+  #search-root {
+    display: none !important;
+  }
+  main,
+  .prose-doc {
+    max-width: none;
+  }
+  .prose-doc :is(pre, table, blockquote) {
+    break-inside: avoid;
+  }
+  .prose-doc :is(h2, h3) {
+    break-after: avoid;
+  }
+  .prose-doc a {
+    text-decoration: underline;
   }
 }

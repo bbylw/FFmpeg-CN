@@ -25,6 +25,15 @@
         placeholder="搜索文档，如：硬件加速、截取片段、overlay"
         autocomplete="off"
       />
+      <!-- 原生 search 的清除叉号在暗色下几乎不可见，换成同色系的按钮 -->
+      <button
+        id="search-clear"
+        type="button"
+        class="hidden h-6 w-6 shrink-0 items-center justify-center rounded-full text-ink-3 transition hover:bg-accent-soft hover:text-ink sm:flex"
+        aria-label="清空搜索词"
+      >
+        <i class="ph ph-x text-[13px]" aria-hidden="true"></i>
+      </button>
       <kbd class="hidden font-mono text-[11px] text-ink-3 sm:block">Esc</kbd>
     </div>
     <div id="search-status" class="px-4 py-3 text-[13px] text-ink-3" role="status">
@@ -32,7 +41,7 @@
     </div>
     <ul
       id="search-results"
-      class="max-h-[52vh] overflow-y-auto p-2"
+      class="thin-scroll max-h-[52vh] overflow-y-auto p-2"
       role="listbox"
       aria-label="搜索结果"
     ></ul>
@@ -42,6 +51,11 @@
 <style is:global>
   #search-root::backdrop {
     display: none;
+  }
+  #search-input::-webkit-search-cancel-button,
+  #search-input::-webkit-search-decoration {
+    -webkit-appearance: none;
+    appearance: none;
   }
   .search-hit mark {
     background: color-mix(in oklab, var(--color-accent) 30%, transparent);
@@ -59,6 +73,7 @@
   const input = document.getElementById("search-input") as HTMLInputElement | null;
   const status = document.getElementById("search-status");
   const list = document.getElementById("search-results");
+  const clearBtn = document.getElementById("search-clear");
 
   // 键盘导航状态：options 是当前渲染出的结果链接，active 为高亮下标（-1 表示无）
   let lastFocus: HTMLElement | null = null;
@@ -162,8 +177,11 @@
     }
     scored.sort((a, b) => b.score - a.score);
     const top = scored.slice(0, 12);
-    status.textContent = top.length
-      ? `命中 ${top.length} 节（共 ${scored.length} 处）`
+    // 两个数字都是「节」的数量，此前写成「命中 3 节（共 12 处）」会让人以为是命中次数
+    status.textContent = scored.length
+      ? scored.length > top.length
+        ? `共 ${scored.length} 节匹配，显示前 ${top.length} 条`
+        : `命中 ${scored.length} 节`
       : `没有匹配「${qRaw.trim()}」的内容。`;
     top.forEach(({ hit, ctx }, i) => {
       const li = document.createElement("li");
@@ -197,9 +215,25 @@
     return html;
   }
 
+  // 清除按钮只在有输入时出现（小屏由 sm:flex 决定是否可见）
+  const syncClear = () => {
+    if (!clearBtn || !input) return;
+    clearBtn.classList.toggle("hidden", input.value.length === 0);
+  };
+
   window.addEventListener("ffmpeg:search", open);
   document.getElementById("search-backdrop")?.addEventListener("click", close);
-  input?.addEventListener("input", () => search(input.value));
+  input?.addEventListener("input", () => {
+    search(input.value);
+    syncClear();
+  });
+  clearBtn?.addEventListener("click", () => {
+    if (!input) return;
+    input.value = "";
+    search("");
+    syncClear();
+    input.focus();
+  });
 
   // 键盘：上下选结果、回车跳转、Esc 关闭、Tab 锁在对话框内
   const onKeydown = (e: KeyboardEvent) => {
@@ -237,11 +271,21 @@
         }
         break;
       }
-      case "Tab":
-        // 只有一个可聚焦控件，Tab 不应把焦点放回页面
+      case "Tab": {
+        // 焦点锁在对话框内，在输入框与清除按钮之间循环
+        const els = ([input, clearBtn] as (HTMLElement | null)[]).filter(
+          (el): el is HTMLElement => !!el && !el.classList.contains("hidden")
+        );
         e.preventDefault();
-        input?.focus();
+        if (els.length < 2) {
+          els[0]?.focus();
+          break;
+        }
+        const at = els.indexOf(document.activeElement as HTMLElement);
+        const step = e.shiftKey ? -1 : 1;
+        els[(at + step + els.length) % els.length].focus();
         break;
+      }
     }
   };
   document.addEventListener("keydown", onKeydown);

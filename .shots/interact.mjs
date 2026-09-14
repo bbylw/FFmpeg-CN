@@ -62,6 +62,14 @@ await page.keyboard.press("ArrowDown");
 await page.waitForTimeout(80);
 const ad1 = await page.getAttribute("#search-input", "aria-activedescendant");
 ok(ad1 === "search-option-1", `方向键未更新 aria-activedescendant：${ad1}`);
+
+// 清除按钮：只在该出现时出现，点了要真的清空
+ok(await page.locator("#search-clear").isVisible(), "有输入时没有清除按钮");
+await page.click("#search-clear");
+const cleared = await page.inputValue("#search-input");
+ok(cleared === "", `清除后输入框仍有内容：${cleared}`);
+ok((await page.locator("#search-results a").count()) === 0, "清除后结果未清空");
+
 await page.keyboard.press("Escape");
 const restored = await page.evaluate(() => document.activeElement && document.activeElement.id);
 ok(restored === "search-open", `关闭搜索后焦点未归还按钮：${restored}`);
@@ -76,6 +84,31 @@ const blankIcons = await page.evaluate(() => {
   return bad;
 });
 ok(blankIcons.length === 0, `${blankIcons.length} 个图标无字形：${blankIcons.slice(0, 3).join(" | ")}`);
+
+// 细节回归：锚点落点、焦点环、目录裁切。这三样都没有硬报错，坏了只能靠眼睛发现
+await page.goto(BASE + "/docs/syntax/", { waitUntil: "load" });
+await page.locator("#toc a").first().click();
+await page.waitForTimeout(600);
+const anchor = await page.evaluate(() => {
+  const h = document.getElementById(decodeURIComponent(location.hash.slice(1)));
+  if (!h) return null;
+  const hb = document.querySelector("header").getBoundingClientRect();
+  return Math.round(h.getBoundingClientRect().top - hb.bottom);
+});
+ok(anchor !== null && anchor >= 0, `锚点目标被吸顶头部遮挡 ${anchor}px`);
+
+await page.keyboard.press("Tab");
+const ring = await page.evaluate(() => {
+  const cs = getComputedStyle(document.activeElement);
+  return { style: cs.outlineStyle, width: parseFloat(cs.outlineWidth) };
+});
+ok(ring.style === "solid" && ring.width >= 2, `焦点环仍是浏览器默认：${JSON.stringify(ring)}`);
+
+const tocFit = await page.evaluate(() => {
+  const t = document.getElementById("toc");
+  return t ? t.scrollWidth - t.clientWidth : null;
+});
+ok(tocFit === 0, `本页目录横向溢出 ${tocFit}px（长标签被裁）`);
 
 // 首页 hero 截图（明暗各一）
 for (const theme of ["dark", "light"]) {

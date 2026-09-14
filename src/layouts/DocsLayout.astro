@@ -61,7 +61,7 @@ const jsonLd = {
       class="hidden w-[232px] shrink-0 lg:block"
       aria-label="文档目录"
     >
-      <nav class="sticky top-[76px] max-h-[calc(100dvh-96px)] overflow-y-auto pb-8 pr-2">
+      <nav class="thin-scroll sticky top-[calc(var(--header-h)+1rem)] max-h-[calc(100dvh-96px)] overflow-y-auto pb-8 pr-2">
         {
           grouped.map(({ group: g, pages }) => (
             <div class="mb-6">
@@ -206,9 +206,9 @@ const jsonLd = {
       class="hidden w-[210px] shrink-0 xl:block"
       aria-label="本页目录"
     >
-      <div class="sticky top-[76px] py-12">
+      <div class="sticky top-[calc(var(--header-h)+1rem)] py-12">
         <p class="mb-3 px-2 text-[13px] font-bold text-ink-3">本页目录</p>
-        <nav id="toc"></nav>
+        <nav id="toc" class="thin-scroll max-h-[calc(100dvh-11rem)] overflow-y-auto"></nav>
       </div>
     </aside>
   </div>
@@ -258,7 +258,8 @@ const jsonLd = {
           }
         }
       },
-      { rootMargin: "-72px 0px -70% 0px" }
+      // 与 --anchor-gap 一致：吸顶头部 + 1rem
+      { rootMargin: "-76px 0px -70% 0px" }
     );
     heads.forEach((h) => io.observe(h));
   })();
