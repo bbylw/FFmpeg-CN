@@ -6,9 +6,9 @@ import tailwindcss from "@tailwindcss/vite";
 import { unified } from "@astrojs/markdown-remark";
 import { rehypeHeadingIds } from "./src/lib/md-slug";
 
-// 发布前把 site 换成最终域名（GitHub Pages / 自定义域）
 export default defineConfig({
-  site: "https://ffmpeg.localhost.placeholder",
+  // 自定义域：GitHub Pages 里用 API 设 cname，不要往 public/ 放 CNAME 文件
+  site: "https://ffmpeg.ndjp.net",
   output: "static",
   trailingSlash: "ignore",
   // 悬停即预取站内链接，静态站点的页面切换几乎零等待
