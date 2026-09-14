@@ -271,6 +271,13 @@ html[data-theme="dark"] .astro-code span {
   white-space: pre;
 }
 
+/* 亮色行内代码纸面化：与代码块同一 tint，白底小药丸在纸面页上太碎。
+   注意不能再深——正文里有链接包代码的写法（[`-nostdin`](…)），强调绿在这底上 4.58:1，
+   上一档 #eef0e6 就掉到 4.45。暗色沿用 elevated，不动。 */
+html[data-theme="light"] .prose-doc :not(pre) > code {
+  background-color: #f1f3ea;
+}
+
 /* 代码块复制按钮：由 Base.astro 内联脚本给 main 下每个 pre 包 .code-wrap 并注入按钮。
    按钮平时隐藏（hover / 键盘聚焦时出现），触屏无 hover 则常显。 */
 .code-wrap {
@@ -421,6 +428,10 @@ main pre:focus-within .code-copy,
   /* 代码块打印强制白底：省墨，且 tint 纸在黑白打印机上会糊成一片灰 */
   .astro-code {
     background-color: #fff !important;
+  }
+  /* 行内代码同理：亮色 tint 回白，暗色 elevated 更要回白（否则印出黑条） */
+  .prose-doc :not(pre) > code {
+    background-color: #fff;
   }
   .prose-doc :is(pre, table, blockquote) {
     break-inside: avoid;
