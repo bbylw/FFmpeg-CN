@@ -1,10 +1,9 @@
 ---
-import "@fontsource/space-grotesk/latin-500.css";
-import "@fontsource/space-grotesk/latin-700.css";
-import "@fontsource/ibm-plex-mono/latin-400.css";
-import "@fontsource/ibm-plex-mono/latin-500.css";
-import "@phosphor-icons/web/regular";
 import "../styles/global.css";
+import "../styles/fonts.css";
+// 图标字体：由 scripts/build-icons.mjs 从 @phosphor-icons/web 裁出的本站子集
+import "../styles/icons.css";
+import spaceGrotesk500 from "@fontsource/space-grotesk/files/space-grotesk-latin-500-normal.woff2?url";
 import SiteHeader from "../components/SiteHeader.astro";
 import SiteFooter from "../components/SiteFooter.astro";
 import SearchDialog from "../components/SearchDialog.astro";
@@ -13,9 +12,13 @@ interface Props {
   title: string;
   description: string;
   bodyClass?: string;
+  /** 内部/错误页用：不参与索引 */
+  noindex?: boolean;
 }
-const { title, description, bodyClass = "" } = Astro.props;
+const { title, description, bodyClass = "", noindex = false } = Astro.props;
 const canonical = new URL(Astro.url.pathname, Astro.site).href;
+const ogImage = new URL("/og.png", Astro.site).href;
+const ogAlt = "FFmpeg 中文站：录制、转换与流化音视频的完整方案";
 ---
 
 <!doctype html>
@@ -27,13 +30,26 @@ const canonical = new URL(Astro.url.pathname, Astro.site).href;
     <meta name="description" content={description} />
     <link rel="canonical" href={canonical} />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <link rel="sitemap" href="/sitemap-index.xml" />
+    {noindex && <meta name="robots" content="noindex" />}
+    <!-- 字体预加载：图标字体是 font-display:block（未到就空白），标题字体会引起可见回流 -->
+    <link rel="preload" href="/fonts/phosphor-regular.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="preload" href={spaceGrotesk500} as="font" type="font/woff2" crossorigin />
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="FFmpeg" />
     <meta property="og:locale" content="zh_CN" />
     <meta property="og:title" content={title} />
     <meta property="og:description" content={description} />
     <meta property="og:url" content={canonical} />
+    <meta property="og:image" content={ogImage} />
+    <meta property="og:image:type" content="image/png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content={ogAlt} />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:image" content={ogImage} />
+    <meta name="twitter:image:alt" content={ogAlt} />
     <meta name="theme-color" content="#121513" media="(prefers-color-scheme: dark)" />
     <meta name="theme-color" content="#f2f4f0" media="(prefers-color-scheme: light)" />
     <script is:inline>

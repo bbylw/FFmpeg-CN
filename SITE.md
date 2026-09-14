@@ -8,8 +8,14 @@ FFmpeg 中文站：营销首页 + 完整中文文档站。仓库根 `README.md` 
 - Tailwind CSS v4（`@tailwindcss/vite` 插件，无 postcss 配置）
 - MDX 内容集合（`@astrojs/mdx` + `@astrojs/markdown-remark` 的 `unified()` 处理器管线）
 - Bun 作为包管理与脚本运行器
-- 字体自托管：`@fontsource/space-grotesk`（拉丁显示/正文）+ `@fontsource/ibm-plex-mono`（代码），中文走系统字体栈
-- 图标：`@phosphor-icons/web`（`ph ph-*` 类名，避免 react 版缺失导出问题）
+- 字体自托管：`@fontsource/space-grotesk`（拉丁显示/正文）+ `@fontsource/ibm-plex-mono`（代码），中文走系统字体栈。
+  声明写在 `src/styles/fonts.css`，**只引 woff2**——@fontsource 现成的 `latin-500.css` 会把 woff/ttf 一起写进 `src` 列表，产物里白多几百 KB。
+- 图标：`@phosphor-icons/web` 的 `ph ph-*` 类名（避免 react 版缺失导出问题），但**不整包引入它的 CSS**。
+  `scripts/build-icons.mjs` 扫描 `src/` 里实际用到的图标，只生成这些字形到 `src/styles/icons.css`，
+  字体裁到单一 woff2（`public/fonts/phosphor-regular.woff2`）。
+  全量 CSS 是 78KB/每页、字体资源 4MB；本站只用十几个图标，子集后是 1.8KB + 144KB。
+  **新增图标后必须跑 `bun run icons`**；该脚本同时是拼写守卫，类名不存在会直接报错
+  （历史上 `ph-magnifier-lg`、`ph-heart-bold` 就是拼错后静默不显示）。`bun run check` 会校验子集是否过期。
 
 ## 设计语言
 
@@ -25,10 +31,19 @@ src/
   content/docs/*.mdx     # 20 篇中文文档（frontmatter: title/description/group/order/source）
   lib/md-slug.ts         # 标题锚点 slug：rehype 插件、搜索索引、本页目录共用
   lib/site.ts            # 分组、导航、官方链接常量
-  layouts/Base.astro     # 外壳：字体、主题 boot 脚本、SEO/OG
-  layouts/DocsLayout.astro # 文档壳：侧栏 + 正文 + 本页目录 + 前后篇
+  layouts/Base.astro     # 外壳：字体、主题 boot 脚本、SEO/OG/结构化数据
+  layouts/DocsLayout.astro # 文档壳：侧栏 + 正文 + 本页目录 + 前后篇 + 小屏折叠目录
   components/            # 头部/尾部/搜索/标记/管线视觉
+  styles/global.css      # 设计令牌 + 文档排版
+  styles/fonts.css       # 文本/代码字体的 woff2-only @font-face
+  styles/icons.css       # 生成的图标子集（勿手改）
   pages/                 # / 首页，/docs/ 目录页，/docs/[slug] 文档，/404，/search-index.json
+scripts/
+  build-icons.mjs        # 生成图标子集 + 拼写守卫（bun run icons / --check）
+  build-assets.mjs       # 生成 OG 分享图与触屏图标（bun run assets）
+public/
+  fonts/phosphor-regular.woff2  # 图标子集字体（由 build-icons 产出，入库）
+  og.png                 # 1200×630 分享图（由 build-assets 从站点自身渲染）
 .sources/                # 抓取存档（官方英文 HTML + 子代理翻译规范 CONVENTIONS.md）
 .shots/                  # 无头验收脚本与截图（png 不入库）
 ```
@@ -39,15 +54,20 @@ src/
 bun install
 bun run dev        # astro dev
 bun run build      # 产出 dist/，23 页 + sitemap + search-index.json
-bun run check      # astro check
+bun run check      # astro check（含图标子集过期校验）
+bun run icons      # 改动图标类名后重新生成 src/styles/icons.css
+bun run assets     # 重新生成 public/og.png 与 apple-touch-icon.png（需先起 .shots/serve.mjs）
 ```
+
+> `astro check` 需要 TypeScript 6.x：TS 7 还没提供它依赖的编译 API，装 7 会直接报错。版本已在 package.json 里锁定。
 
 验收脚本（依赖本机 `~/.pwl` 的 playwright-core 与系统 Chrome）：
 
 ```bash
 node .shots/serve.mjs &        # 127.0.0.1:8199 直连 dist
 node .shots/verify.mjs         # 明暗×桌面/移动截图 + 溢出/破折号/重复id/对比度断言
-node .shots/interact.mjs       # 主题切换、Ctrl+K 搜索、TOC、移动菜单交互回归
+node .shots/interact.mjs       # 主题切换、Ctrl+K 搜索（含方向键/焦点归还）、TOC、移动菜单、图标字形
+node .shots/overflow.mjs       # 列出某页超出视口右侧的元素（默认 390px 宽）
 node .shots/check-mdx.mjs      # 用 mdx-js 引擎预检所有 MDX（<url> autolink 等坑）
 ```
 

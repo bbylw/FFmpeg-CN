@@ -11,6 +11,11 @@ export default defineConfig({
   site: "https://ffmpeg.localhost.placeholder",
   output: "static",
   trailingSlash: "ignore",
+  // 悬停即预取站内链接，静态站点的页面切换几乎零等待
+  prefetch: {
+    prefetchAll: true,
+    defaultStrategy: "hover",
+  },
   integrations: [mdx(), sitemap()],
   vite: {
     plugins: [tailwindcss()],

@@ -8,7 +8,7 @@ interface Props {
   entry: CollectionEntry<"docs">;
 }
 const { entry } = Astro.props;
-const { title, description, group, order, source } = entry.data;
+const { title, description, group, source } = entry.data;
 const Content = (await render(entry)).Content;
 
 const all = (await getCollection("docs")).sort(
@@ -27,9 +27,35 @@ const grouped = GROUPS.map((g) => ({
 })).filter((x) => x.pages.length > 0);
 
 const canonical = new URL(`/docs/${entry.id}/`, Astro.site).href;
+const docsIndex = new URL("/docs/", Astro.site).href;
+
+// 结构化数据：文章 + 面包屑。面包屑锚点必须与 /docs/ 里 <section id={组名}> 一致
+const jsonLd = {
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "TechArticle",
+      headline: title,
+      description,
+      inLanguage: "zh-CN",
+      url: canonical,
+      publisher: { "@type": "Organization", name: "FFmpeg", url: "https://ffmpeg.org/" },
+      ...(source ? { isBasedOn: source } : {}),
+    },
+    {
+      "@type": "BreadcrumbList",
+      itemListElement: [
+        { "@type": "ListItem", position: 1, name: "文档", item: docsIndex },
+        { "@type": "ListItem", position: 2, name: group, item: `${docsIndex}#${group}` },
+        { "@type": "ListItem", position: 3, name: title, item: canonical },
+      ],
+    },
+  ],
+};
 ---
 
 <Base title={`${title} · FFmpeg`} description={description} bodyClass="min-h-dvh">
+  <script type="application/ld+json" is:inline set:html={JSON.stringify(jsonLd)}></script>
   <div class="mx-auto flex w-full max-w-[1280px] gap-10 px-4 sm:px-6">
     <aside
       class="hidden w-[232px] shrink-0 lg:block"
@@ -68,8 +94,49 @@ const canonical = new URL(`/docs/${entry.id}/`, Astro.site).href;
       <p class="mb-3 text-[13px] text-ink-3">
         <a href="/docs/" class="hover:text-accent">文档</a>
         <span aria-hidden="true"> / </span>
-        <a href="/docs/#group" class="hover:text-accent">{group}</a>
+        <a href={`/docs/#${group}`} class="hover:text-accent">{group}</a>
       </p>
+
+      <!-- 小屏没有侧栏，用 details 提供折叠目录；桌面隐藏 -->
+      <details class="mb-6 rounded-tile border border-line bg-surface lg:hidden">
+        <summary
+          class="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 text-[15px] font-medium text-ink [&::-webkit-details-marker]:hidden"
+        >
+          <span class="inline-flex items-center gap-2">
+            <i class="ph ph-list text-[16px] text-ink-3" aria-hidden="true"></i>
+            文档目录
+          </span>
+          <span class="text-[13px] font-normal text-ink-3">{group}</span>
+        </summary>
+        <nav class="border-t border-line px-2 py-2" aria-label="文档目录">
+          {
+            grouped.map(({ group: g, pages }) => (
+              <div class="mb-3 last:mb-1">
+                <p class="px-2 py-1 text-[12px] font-bold text-ink-3">{g}</p>
+                <ul>
+                  {pages.map((p) => (
+                    <li>
+                      <a
+                        href={`/docs/${p.id}/`}
+                        aria-current={p.id === entry.id ? "page" : undefined}
+                        class:list={[
+                          "block rounded-lg px-2 py-1.5 text-[14px] leading-snug",
+                          p.id === entry.id
+                            ? "bg-accent-soft font-medium text-ink"
+                            : "text-ink-2 hover:bg-accent-soft hover:text-ink",
+                        ]}
+                      >
+                        {p.data.title}
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))
+          }
+        </nav>
+      </details>
+
       <div class="prose-doc" id="doc-body">
         <h1>{title}</h1>
         <Content />

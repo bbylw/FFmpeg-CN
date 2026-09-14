@@ -36,15 +36,16 @@ const isActive = (href: string) =>
     </nav>
 
     <div class="ml-auto flex items-center gap-1.5">
+      <!-- 小屏只留图标：移动端此前完全没有搜索入口 -->
       <button
         type="button"
         id="search-open"
-        class="hidden h-9 items-center gap-2 rounded-full border border-line px-3 text-[13px] text-ink-3 transition-colors hover:border-line-strong hover:text-ink-2 sm:flex"
+        class="flex h-9 items-center gap-2 rounded-full border border-line px-3 text-[13px] text-ink-3 transition-colors hover:border-line-strong hover:text-ink-2"
         aria-label="搜索文档"
       >
-        <i class="ph ph-magnifier-lg text-[15px]" aria-hidden="true"></i>
-        <span>搜索</span>
-        <kbd class="font-mono text-[11px] text-ink-3">Ctrl K</kbd>
+        <i class="ph ph-magnifying-glass text-[15px]" aria-hidden="true"></i>
+        <span class="hidden sm:inline">搜索</span>
+        <kbd class="hidden font-mono text-[11px] text-ink-3 sm:inline">Ctrl K</kbd>
       </button>
       <button
         type="button"
@@ -82,6 +83,7 @@ const isActive = (href: string) =>
       NAV.map((item) => (
         <a
           href={item.href}
+          aria-current={isActive(item.href) ? "page" : undefined}
           class="block rounded-lg px-3 py-2.5 text-[15px] text-ink-2 hover:bg-accent-soft hover:text-ink"
         >
           {item.label}
@@ -120,15 +122,31 @@ const isActive = (href: string) =>
     sync();
   })();
 
-  // 移动端菜单
+  // 移动端菜单：开合、Esc 关闭、导航后收起、跨断点复位
   (() => {
     const toggle = document.getElementById("menu-toggle");
     const nav = document.getElementById("mobile-nav");
     if (!toggle || !nav) return;
-    toggle.addEventListener("click", () => {
-      const open = nav.classList.toggle("hidden") === false;
+    const setOpen = (open: boolean) => {
+      nav.classList.toggle("hidden", !open);
       toggle.setAttribute("aria-expanded", String(open));
+      toggle.setAttribute("aria-label", open ? "关闭菜单" : "打开菜单");
+      const icon = toggle.querySelector("i");
+      if (icon) icon.className = open ? "ph ph-x text-[17px]" : "ph ph-list text-[17px]";
+    };
+    toggle.addEventListener("click", () => setOpen(nav.classList.contains("hidden")));
+    nav.addEventListener("click", (e) => {
+      if ((e.target as HTMLElement).closest("a")) setOpen(false);
     });
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape" && !nav.classList.contains("hidden")) {
+        setOpen(false);
+        (toggle as HTMLButtonElement).focus();
+      }
+    });
+    window
+      .matchMedia("(min-width: 768px)")
+      .addEventListener("change", (m) => m.matches && setOpen(false));
   })();
 
   // 搜索快捷键

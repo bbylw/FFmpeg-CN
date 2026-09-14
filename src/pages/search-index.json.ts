@@ -27,7 +27,8 @@ function sections(body: string, title: string, url: string): Hit[] {
   let cur = { s: "概述", h: "", text: "" as string };
   let inFence = false;
   const push = () => {
-    const x = cur.text.replace(/\s+/g, " ").replace(/`/g, "").trim().slice(0, 240);
+    // 截断长度直接决定索引体积（首次搜索才下载），180 字足够展示一行上下文
+    const x = cur.text.replace(/\s+/g, " ").replace(/`/g, "").trim().slice(0, 180);
     out.push({ t: title, s: cur.s, h: cur.h, u: url + (cur.h ? `#${cur.h}` : ""), x });
   };
   for (const raw of body.split(/\r?\n/)) {

@@ -12,10 +12,15 @@
     class="relative mx-auto mt-[12vh] w-[min(640px,calc(100vw-2rem))] overflow-hidden rounded-tile border border-line bg-elevated shadow-2xl shadow-black/30"
   >
     <div class="flex items-center gap-3 border-b border-line px-4">
-      <i class="ph ph-magnifier-lg text-[18px] text-ink-3" aria-hidden="true"></i>
+      <i class="ph ph-magnifying-glass text-[18px] text-ink-3" aria-hidden="true"></i>
       <input
         id="search-input"
         type="search"
+        role="combobox"
+        aria-label="搜索文档关键词"
+        aria-expanded="true"
+        aria-controls="search-results"
+        aria-autocomplete="list"
         class="w-full bg-transparent py-3.5 text-[15px] text-ink outline-none placeholder:text-ink-3"
         placeholder="搜索文档，如：硬件加速、截取片段、overlay"
         autocomplete="off"
@@ -25,7 +30,12 @@
     <div id="search-status" class="px-4 py-3 text-[13px] text-ink-3" role="status">
       输入关键词开始搜索。
     </div>
-    <ul id="search-results" class="max-h-[52vh] overflow-y-auto p-2" role="listbox"></ul>
+    <ul
+      id="search-results"
+      class="max-h-[52vh] overflow-y-auto p-2"
+      role="listbox"
+      aria-label="搜索结果"
+    ></ul>
   </div>
 </div>
 
@@ -50,15 +60,50 @@
   const status = document.getElementById("search-status");
   const list = document.getElementById("search-results");
 
+  // 键盘导航状态：options 是当前渲染出的结果链接，active 为高亮下标（-1 表示无）
+  let lastFocus: HTMLElement | null = null;
+  let options: HTMLAnchorElement[] = [];
+  let active = -1;
+
+  const setActive = (i: number) => {
+    if (!options.length) return;
+    active = ((i % options.length) + options.length) % options.length;
+    options.forEach((a, n) => {
+      const on = n === active;
+      a.setAttribute("aria-selected", String(on));
+      a.classList.toggle("bg-accent-soft", on);
+    });
+    input?.setAttribute("aria-activedescendant", options[active].id);
+    options[active].scrollIntoView({ block: "nearest" });
+  };
+
+  const clearActive = () => {
+    active = -1;
+    for (const a of options) {
+      a.setAttribute("aria-selected", "false");
+      a.classList.remove("bg-accent-soft");
+    }
+    input?.removeAttribute("aria-activedescendant");
+  };
+
+  const isOpen = () => !!root && !root.classList.contains("hidden");
+
   const open = () => {
-    root?.classList.remove("hidden");
+    if (!root || isOpen()) return;
+    lastFocus = (document.activeElement as HTMLElement | null) ?? null;
+    root.classList.remove("hidden");
     document.body.style.overflow = "hidden";
     input?.focus();
     ensureIndex();
   };
+
   const close = () => {
-    root?.classList.add("hidden");
+    if (!root || !isOpen()) return;
+    root.classList.add("hidden");
     document.body.style.overflow = "";
+    // 焦点还给触发者（搜索按钮 / 404 页按钮），否则键盘用户会掉到文档开头
+    lastFocus?.focus();
+    lastFocus = null;
   };
 
   async function ensureIndex() {
@@ -83,6 +128,8 @@
     if (!INDEX || !list || !status) return;
     const q = qRaw.trim().toLowerCase();
     list.innerHTML = "";
+    options = [];
+    clearActive();
     if (!q) {
       status.textContent = "输入关键词开始搜索。";
       return;
@@ -118,19 +165,24 @@
     status.textContent = top.length
       ? `命中 ${top.length} 节（共 ${scored.length} 处）`
       : `没有匹配「${qRaw.trim()}」的内容。`;
-    for (const { hit, ctx } of top) {
+    top.forEach(({ hit, ctx }, i) => {
       const li = document.createElement("li");
+      li.setAttribute("role", "presentation");
       const a = document.createElement("a");
+      a.id = `search-option-${i}`;
       a.href = hit.u;
-      a.className =
-        "search-hit block rounded-lg px-3 py-2.5 hover:bg-accent-soft";
-      const titleHtml = ctx ? markTerms(ctx, terms) : "";
+      a.setAttribute("role", "option");
+      a.setAttribute("aria-selected", "false");
+      a.className = "search-hit block rounded-lg px-3 py-2.5 hover:bg-accent-soft";
+      const ctxHtml = ctx ? markTerms(ctx, terms) : "";
       a.innerHTML =
         `<div class="text-[14px] font-medium text-ink">${esc(hit.t)} <span class="text-ink-3">/</span> ${esc(hit.s)}</div>` +
-        (titleHtml ? `<div class="mt-0.5 line-clamp-2 text-[13px] leading-relaxed text-ink-2">${titleHtml}</div>` : "");
+        (ctxHtml ? `<div class="mt-0.5 line-clamp-2 text-[13px] leading-relaxed text-ink-2">${ctxHtml}</div>` : "");
       li.appendChild(a);
       list.appendChild(li);
-    }
+      options.push(a);
+    });
+    if (options.length) setActive(0);
   }
 
   function markTerms(text: string, terms: string[]) {
@@ -148,11 +200,49 @@
   window.addEventListener("ffmpeg:search", open);
   document.getElementById("search-backdrop")?.addEventListener("click", close);
   input?.addEventListener("input", () => search(input.value));
-  document.addEventListener("keydown", (e) => {
-    if (e.key === "Escape" && root && !root.classList.contains("hidden")) close();
-    if (e.key === "Enter" && root && !root.classList.contains("hidden")) {
-      const first = list?.querySelector("a");
-      if (first) location.href = first.getAttribute("href") || "";
+
+  // 键盘：上下选结果、回车跳转、Esc 关闭、Tab 锁在对话框内
+  const onKeydown = (e: KeyboardEvent) => {
+    if (!isOpen()) return;
+    switch (e.key) {
+      case "Escape":
+        e.preventDefault();
+        close();
+        break;
+      case "ArrowDown":
+        e.preventDefault();
+        setActive(active + 1);
+        break;
+      case "ArrowUp":
+        e.preventDefault();
+        setActive(active - 1);
+        break;
+      case "Home":
+        if (options.length) {
+          e.preventDefault();
+          setActive(0);
+        }
+        break;
+      case "End":
+        if (options.length) {
+          e.preventDefault();
+          setActive(options.length - 1);
+        }
+        break;
+      case "Enter": {
+        const target = options[active] ?? options[0];
+        if (target) {
+          e.preventDefault();
+          location.href = target.getAttribute("href") || "";
+        }
+        break;
+      }
+      case "Tab":
+        // 只有一个可聚焦控件，Tab 不应把焦点放回页面
+        e.preventDefault();
+        input?.focus();
+        break;
     }
-  });
+  };
+  document.addEventListener("keydown", onKeydown);
 </script>
